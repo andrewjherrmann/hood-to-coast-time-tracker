@@ -12,7 +12,7 @@
         />
 
         <q-toolbar-title>
-          Quasar App
+          Hood to Coast Tracker
         </q-toolbar-title>
 
         <div>Quasar v{{ $q.version }}</div>
@@ -28,7 +28,7 @@
         <q-item-label
           header
         >
-          Essential Links
+          Navigation
         </q-item-label>
 
         <EssentialLink
@@ -51,46 +51,28 @@ import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink
 
 const linksList: EssentialLinkProps[] = [
   {
-    title: 'Docs',
-    caption: 'quasar.dev',
-    icon: 'school',
-    link: 'https://quasar.dev'
+    title: 'Dashboard',
+    caption: 'Team progress and current leg',
+    icon: 'dashboard',
+    link: '/'
   },
   {
-    title: 'Github',
-    caption: 'github.com/quasarframework',
-    icon: 'code',
-    link: 'https://github.com/quasarframework'
+    title: 'Legs',
+    caption: 'Manage race legs',
+    icon: 'flag',
+    link: '/legs'
   },
   {
-    title: 'Discord Chat Channel',
-    caption: 'chat.quasar.dev',
-    icon: 'chat',
-    link: 'https://chat.quasar.dev'
+    title: 'Times',
+    caption: 'View and edit time entries',
+    icon: 'schedule',
+    link: '/times'
   },
   {
-    title: 'Forum',
-    caption: 'forum.quasar.dev',
-    icon: 'record_voice_over',
-    link: 'https://forum.quasar.dev'
-  },
-  {
-    title: 'Twitter',
-    caption: '@quasarframework',
-    icon: 'rss_feed',
-    link: 'https://twitter.quasar.dev'
-  },
-  {
-    title: 'Facebook',
-    caption: '@QuasarFramework',
-    icon: 'public',
-    link: 'https://facebook.quasar.dev'
-  },
-  {
-    title: 'Quasar Awesome',
-    caption: 'Community Quasar projects',
-    icon: 'favorite',
-    link: 'https://awesome.quasar.dev'
+    title: 'Settings',
+    caption: 'Team settings and data management',
+    icon: 'settings',
+    link: '/settings'
   }
 ];
 
