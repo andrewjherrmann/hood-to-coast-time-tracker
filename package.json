@@ -1,0 +1,27 @@
+{
+  "name": "hood-to-coast-time-tracker",
+  "version": "1.0.0",
+  "description": "A mobile-friendly app for tracking Hood to Coast relay race times and historical records",
+  "private": true,
+  "workspaces": [
+    "web-app",
+    "infrastructure"
+  ],
+  "scripts": {
+    "dev": "cd web-app && yarn dev",
+    "build": "cd web-app && yarn build",
+    "build:pwa": "cd web-app && yarn build:pwa",
+    "build:android": "cd web-app && yarn build:android",
+    "build:ios": "cd web-app && yarn build:ios",
+    "lint": "cd web-app && yarn lint",
+    "format": "cd web-app && yarn format",
+    "deploy:infra": "cd infrastructure && yarn deploy",
+    "destroy:infra": "cd infrastructure && yarn destroy",
+    "synth:infra": "cd infrastructure && yarn synth",
+    "install:all": "yarn install && cd web-app && yarn install && cd ../infrastructure && yarn install"
+  },
+  "engines": {
+    "node": ">= 18.0.0",
+    "yarn": ">= 1.22.0"
+  }
+}
