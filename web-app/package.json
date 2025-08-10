@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "A web app that allows teams to track their times, estimate finishes and exchanges, and see historical results.",
   "productName": "Hood to Coast Time Tracker",
-  "author": "phtech-andyherrmann <andy.herrmann@phtech.com>",
+  "author": "Your Name <your.email@example.com>",
   "type": "module",
   "private": true,
   "scripts": {

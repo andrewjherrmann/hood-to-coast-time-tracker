@@ -20,6 +20,10 @@ web-app/src-electron/dist-electron
 .env.test.local
 .env.production.local
 
+# Local configuration files
+infrastructure/config/local.ts
+web-app/.env
+
 # IDE
 .vscode/
 .idea/
