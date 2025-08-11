@@ -2,13 +2,51 @@
   <q-page class="q-pa-md">
     <!-- Header -->
     <div class="row items-center justify-between q-mb-lg">
-      <div>
-        <h4 class="q-my-none">{{ currentTeam?.name || 'Team Dashboard' }}</h4>
-        <p class="q-mt-sm q-mb-none text-grey-7">
-          Start Time: {{ formatStartTime(currentTeam?.startTime) }}
-        </p>
+      <div class="col">
+        <div class="row items-center q-mb-sm">
+          <div class="col">
+            <h4 class="q-my-none">{{ currentTeam?.name || 'Team Dashboard' }}</h4>
+            <p class="q-mt-sm q-mb-none text-grey-7">
+              Start Time: {{ formatStartTime(currentTeam?.startTime) }}
+            </p>
+          </div>
+          <div class="col-auto">
+            <q-select
+              v-model="selectedRaceId"
+              :options="raceOptions"
+              option-label="name"
+              option-value="id"
+              label="Select Race"
+              outlined
+              dense
+              style="min-width: 200px;"
+              @update:model-value="onRaceChange"
+            >
+              <template v-slot:prepend>
+                <q-icon name="flag" />
+              </template>
+              <template v-slot:option="{ opt, selected, toggleOption }">
+                <q-item clickable @click="toggleOption(opt)">
+                  <q-item-section avatar>
+                    <q-icon 
+                      :name="opt.isActive ? 'check_circle' : 'flag'" 
+                      :color="opt.isActive ? 'green' : 'grey'"
+                    />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ opt.name }}</q-item-label>
+                    <q-item-label caption>{{ formatDate(opt.date) }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-checkbox :model-value="selected" />
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
+          </div>
+        </div>
       </div>
-      <div class="text-right">
+      <div class="col-auto">
         <q-chip
           :color="isMockMode ? 'orange' : 'green'"
           text-color="white"
@@ -175,12 +213,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
 
 const router = useRouter();
 const store = useHoodToCoastStore();
+
+// Race selector
+const selectedRaceId = ref(store.currentRaceId);
 
 // Access store properties directly without destructuring
 const currentTeam = computed(() => store.currentTeam);
@@ -192,7 +233,24 @@ const currentLeg = computed(() => store.currentLeg);
 const estimatedFinishTime = computed(() => store.estimatedFinishTime);
 const progressPercentage = computed(() => store.progressPercentage);
 
+// Race options for selector
+const raceOptions = computed(() => store.races);
+
 // Methods
+function formatDate(date: Date): string {
+  return new Date(date).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+}
+
+function onRaceChange(raceId: string) {
+  if (raceId) {
+    store.setCurrentRace(raceId);
+  }
+}
+
 function getDifficultyColor(difficulty: string): string {
   switch (difficulty) {
     case 'Easy': return 'green';

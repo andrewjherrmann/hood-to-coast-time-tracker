@@ -61,20 +61,26 @@ const linksList = [
     link: '/dashboard'
   },
   {
-    title: 'Legs',
-    caption: 'Manage race legs',
+    title: 'Races',
+    caption: 'Manage multiple races',
     icon: 'flag',
+    link: '/races'
+  },
+  {
+    title: 'Legs',
+    caption: 'Configure race legs',
+    icon: 'route',
     link: '/legs'
   },
   {
     title: 'Times',
-    caption: 'Record completion times',
+    caption: 'Record race times',
     icon: 'timer',
     link: '/times'
   },
   {
     title: 'Runners',
-    caption: 'Manage team roster',
+    caption: 'Manage team runners',
     icon: 'people',
     link: '/runners'
   },

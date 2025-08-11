@@ -42,89 +42,115 @@ export interface Team {
   runners: Runner[];
 }
 
+export interface Race {
+  id: string;
+  name: string;
+  date: Date;
+  team: Team;
+  isActive: boolean;
+}
+
 // Store
 export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   // State
-  const currentTeam = ref<Team | null>(null);
+  const races = ref<Race[]>([]);
+  const currentRaceId = ref<string | null>(null);
   const isMockMode = ref(true);
   const isLoading = ref(false);
   const isAuthenticated = ref(false);
   const currentUser = ref<{ id: string; email: string; name: string } | null>(null);
 
+  // Computed
+  const currentRace = computed(() => {
+    if (!currentRaceId.value) return null;
+    return races.value.find(race => race.id === currentRaceId.value) || null;
+  });
+
+  const currentTeam = computed(() => currentRace.value?.team || null);
+
+  const activeRace = computed(() => races.value.find(race => race.isActive) || null);
+
   // Mock data
-  const mockTeam: Team = {
-    id: 'mock-team-1',
-    name: 'Mock Team Alpha',
-    startTime: new Date('2024-08-24T06:00:00'),
-    runners: [
-      {
-        id: 'runner-1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        phone: '555-0101',
-        estimatedPaceMinutes: 8,
-        estimatedPaceSeconds: 30
-      },
-      {
-        id: 'runner-2',
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        phone: '555-0102',
-        estimatedPaceMinutes: 9,
-        estimatedPaceSeconds: 15
-      },
-      {
-        id: 'runner-3',
-        name: 'Mike Johnson',
-        email: 'mike@example.com',
-        phone: '555-0103',
-        estimatedPaceMinutes: 7,
-        estimatedPaceSeconds: 45
+  const mockRaces: Race[] = [
+    {
+      id: 'race-1',
+      name: 'Hood to Coast 2024',
+      date: new Date('2024-08-24'),
+      isActive: true,
+      team: {
+        id: 'mock-team-1',
+        name: 'Mock Team Alpha',
+        startTime: new Date('2024-08-24T06:00:00'),
+        runners: [
+          {
+            id: 'runner-1',
+            name: 'John Doe',
+            email: 'john@example.com',
+            phone: '555-0101',
+            estimatedPaceMinutes: 8,
+            estimatedPaceSeconds: 30
+          },
+          {
+            id: 'runner-2',
+            name: 'Jane Smith',
+            email: 'jane@example.com',
+            phone: '555-0102',
+            estimatedPaceMinutes: 9,
+            estimatedPaceSeconds: 15
+          },
+          {
+            id: 'runner-3',
+            name: 'Mike Johnson',
+            email: 'mike@example.com',
+            phone: '555-0103',
+            estimatedPaceMinutes: 7,
+            estimatedPaceSeconds: 45
+          }
+        ],
+        legs: [
+          {
+            id: 'leg-1',
+            description: 'Start to Exchange 1 - Flat terrain through downtown',
+            distance: 5.2,
+            difficulty: 'Easy',
+            estimatedPaceMinutes: 8,
+            estimatedPaceSeconds: 30,
+            order: 1,
+            completed: false,
+            runnerId: 'runner-1'
+          },
+          {
+            id: 'leg-2',
+            description: 'Exchange 1 to Exchange 2 - Rolling hills on country roads',
+            distance: 6.8,
+            difficulty: 'Medium',
+            estimatedPaceMinutes: 9,
+            estimatedPaceSeconds: 15,
+            order: 2,
+            completed: false,
+            runnerId: 'runner-2'
+          },
+          {
+            id: 'leg-3',
+            description: 'Exchange 2 to Exchange 3 - Mountain trail section',
+            distance: 4.5,
+            difficulty: 'Hard',
+            estimatedPaceMinutes: 10,
+            estimatedPaceSeconds: 0,
+            order: 3,
+            completed: false,
+            runnerId: 'runner-3'
+          }
+        ],
+        times: []
       }
-    ],
-    legs: [
-      {
-        id: 'leg-1',
-        description: 'Start to Exchange 1 - Flat terrain through downtown',
-        distance: 5.2,
-        difficulty: 'Easy',
-        estimatedPaceMinutes: 8,
-        estimatedPaceSeconds: 30,
-        order: 1,
-        completed: false,
-        runnerId: 'runner-1'
-      },
-      {
-        id: 'leg-2',
-        description: 'Exchange 1 to Exchange 2 - Rolling hills on country roads',
-        distance: 6.8,
-        difficulty: 'Medium',
-        estimatedPaceMinutes: 8,
-        estimatedPaceSeconds: 30,
-        order: 2,
-        completed: false,
-        runnerId: 'runner-2'
-      },
-      {
-        id: 'leg-3',
-        description: 'Exchange 2 to Exchange 3 - Steep climbs in forest area',
-        distance: 4.5,
-        difficulty: 'Hard',
-        estimatedPaceMinutes: 9,
-        estimatedPaceSeconds: 15,
-        order: 3,
-        completed: false,
-        runnerId: 'runner-3'
-      }
-    ],
-    times: []
-  };
+    }
+  ];
 
   // Initialize with mock data
-  if (isMockMode.value) {
-    currentTeam.value = mockTeam;
-    isAuthenticated.value = true;
-    currentUser.value = { id: 'user-1', email: 'admin@example.com', name: 'Admin User' };
+  if (races.value.length === 0) {
+    races.value = [...mockRaces];
+    currentRaceId.value = mockRaces[0]?.id || null;
   }
 
   // Computed
@@ -374,11 +400,11 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   function toggleMockMode() {
     isMockMode.value = !isMockMode.value;
     if (isMockMode.value) {
-      currentTeam.value = mockTeam;
+      // currentTeam is now computed, so we don't need to set it
       isAuthenticated.value = true;
       currentUser.value = { id: 'user-1', email: 'admin@example.com', name: 'Admin User' };
     } else {
-      currentTeam.value = null;
+      // currentTeam is now computed, so we don't need to set it
       isAuthenticated.value = false;
       currentUser.value = null;
     }
@@ -399,15 +425,101 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     currentUser.value = null;
   }
 
+  // Race management functions
+  function createRace(raceData: Omit<Race, 'id' | 'isActive'>) {
+    const newRace: Race = {
+      ...raceData,
+      id: `race-${Date.now()}`,
+      isActive: false
+    };
+    
+    races.value.push(newRace);
+    return newRace;
+  }
+
+  function duplicateRace(raceId: string, newName: string, newDate: Date) {
+    const sourceRace = races.value.find(r => r.id === raceId);
+    if (!sourceRace) return null;
+
+    // Deep clone the race data
+    const duplicatedRace: Race = {
+      id: `race-${Date.now()}`,
+      name: newName,
+      date: newDate,
+      isActive: false,
+      team: {
+        ...sourceRace.team,
+        id: `team-${Date.now()}`,
+        startTime: new Date(newDate.getTime() + (sourceRace.team.startTime.getTime() - sourceRace.date.getTime())),
+        legs: sourceRace.team.legs.map(leg => ({
+          ...leg,
+          id: `leg-${Date.now()}-${Math.random()}`,
+          completed: false
+        })),
+        times: [],
+        runners: sourceRace.team.runners.map(runner => ({
+          ...runner,
+          id: `runner-${Date.now()}-${Math.random()}`
+        }))
+      }
+    };
+
+    races.value.push(duplicatedRace);
+    return duplicatedRace;
+  }
+
+  function setCurrentRace(raceId: string) {
+    const race = races.value.find(r => r.id === raceId);
+    if (race) {
+      currentRaceId.value = raceId;
+    }
+  }
+
+  function updateRace(raceId: string, updates: Partial<Omit<Race, 'id'>>) {
+    const race = races.value.find(r => r.id === raceId);
+    if (race) {
+      Object.assign(race, updates);
+    }
+  }
+
+  function deleteRace(raceId: string) {
+    const index = races.value.findIndex(r => r.id === raceId);
+    if (index !== -1) {
+      races.value.splice(index, 1);
+      
+      // If we deleted the current race, switch to another one
+      if (currentRaceId.value === raceId) {
+        currentRaceId.value = races.value.length > 0 ? races.value[0]?.id || null : null;
+      }
+    }
+  }
+
+  function setActiveRace(raceId: string) {
+    // Set all races as inactive first
+    races.value.forEach(race => {
+      race.isActive = false;
+    });
+    
+    // Set the selected race as active
+    const race = races.value.find(r => r.id === raceId);
+    if (race) {
+      race.isActive = true;
+    }
+  }
+
   return {
     // State
-    currentTeam,
+    races,
+    currentRaceId,
     isMockMode,
     isLoading,
     isAuthenticated,
     currentUser,
     
     // Computed
+    currentRace,
+    currentTeam,
+    activeRace,
     totalDistance,
     completedLegs,
     remainingLegs,
@@ -434,6 +546,12 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     clearAllData,
     toggleMockMode,
     signIn,
-    signOut
+    signOut,
+    createRace,
+    duplicateRace,
+    setCurrentRace,
+    updateRace,
+    deleteRace,
+    setActiveRace
   };
 });
