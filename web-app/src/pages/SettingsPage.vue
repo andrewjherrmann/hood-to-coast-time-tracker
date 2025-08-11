@@ -45,11 +45,23 @@
                 <q-input
                   v-model="teamForm.startTime"
                   label="Start Time"
-                  type="datetime-local"
                   outlined
                   dense
                   class="col-12"
-                />
+                  readonly
+                >
+                  <template v-slot:append>
+                    <q-icon name="access_time" class="cursor-pointer">
+                      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                        <q-time
+                          v-model="teamForm.startTime"
+                          mask="hh:mm A"
+                          format24h
+                        />
+                      </q-popup-proxy>
+                    </q-icon>
+                  </template>
+                </q-input>
               </div>
               <div class="q-mt-md">
                 <q-btn
@@ -57,6 +69,35 @@
                   label="Update Team Info"
                   @click="saveTeamInfo"
                 />
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
+      </div>
+
+      <!-- User Invites -->
+      <div class="col-12 col-md-6">
+        <q-card>
+          <q-card-section>
+            <div class="text-h6">Team Access</div>
+            <div class="text-caption text-grey-6 q-mb-md">
+              Manage who has access to your team
+            </div>
+            <div class="q-mt-md">
+              <div class="text-subtitle2 q-mb-sm">Available Users to Invite:</div>
+              <div class="q-gutter-sm">
+                <q-chip
+                  v-for="user in availableUsers"
+                  :key="user.email"
+                  color="blue"
+                  text-color="white"
+                  size="sm"
+                >
+                  {{ user.name }} ({{ user.email }})
+                </q-chip>
+              </div>
+              <div class="text-caption q-mt-sm text-grey-6">
+                These users can be invited to join your team. Contact your administrator to grant access.
               </div>
             </div>
           </q-card-section>
@@ -206,11 +247,34 @@ const isPasswordFormValid = computed(() => {
          passwordForm.value.newPassword.length >= 8;
 });
 
+const availableUsers = computed(() => {
+  // Mock users that can be invited (excluding current user)
+  const mockUsers = [
+    { email: 'admin@example.com', name: 'Admin User' },
+    { email: 'john@example.com', name: 'John Doe' },
+    { email: 'jane@example.com', name: 'Jane Smith' }
+  ];
+  
+  // Filter out current user if they're in the list
+  const currentUser = store.currentUser;
+  if (currentUser) {
+    return mockUsers.filter(user => user.email !== currentUser.email);
+  }
+  
+  return mockUsers;
+});
+
 // Check if we should edit team info
 onMounted(() => {
   if (currentTeam.value) {
     teamForm.value.name = currentTeam.value.name;
-    teamForm.value.startTime = currentTeam.value.startTime.toISOString().slice(0, 16);
+    // Format the start time to AM/PM format for display
+    const startTime = currentTeam.value.startTime;
+    const hours = startTime.getHours();
+    const minutes = startTime.getMinutes();
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+    teamForm.value.startTime = `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   }
 });
 
@@ -222,15 +286,56 @@ function toggleMockMode() {
 function saveTeamInfo() {
   if (currentTeam.value) {
     currentTeam.value.name = teamForm.value.name;
-    try {
-      currentTeam.value.startTime = new Date(teamForm.value.startTime);
-    } catch {
+    
+    // Parse the AM/PM time format
+    const timeString = teamForm.value.startTime;
+    const parts = timeString.split(' ');
+    if (parts.length !== 2) {
       $q.notify({
         type: 'negative',
-        message: 'Invalid start time format'
+        message: 'Invalid time format'
       });
       return;
     }
+    
+    const [timePart, period] = parts;
+    if (!timePart || !period) {
+      $q.notify({
+        type: 'negative',
+        message: 'Invalid time format'
+      });
+      return;
+    }
+    
+    const timeComponents = timePart.split(':');
+    if (timeComponents.length !== 2) {
+      $q.notify({
+        type: 'negative',
+        message: 'Invalid time format'
+      });
+      return;
+    }
+    
+    const [hours, minutes] = timeComponents;
+    if (!hours || !minutes) {
+      $q.notify({
+        type: 'negative',
+        message: 'Invalid time format'
+      });
+      return;
+    }
+    
+    let hour = parseInt(hours);
+    if (period === 'PM' && hour !== 12) {
+      hour += 12;
+    } else if (period === 'AM' && hour === 12) {
+      hour = 0;
+    }
+    
+    // Create new date with updated time
+    const newStartTime = new Date(currentTeam.value.startTime);
+    newStartTime.setHours(hour, parseInt(minutes), 0, 0);
+    currentTeam.value.startTime = newStartTime;
     
     $q.notify({
       type: 'positive',

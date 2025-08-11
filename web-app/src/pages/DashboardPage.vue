@@ -25,6 +25,11 @@
               <template v-slot:prepend>
                 <q-icon name="flag" />
               </template>
+              <template v-slot:selected>
+                <div v-if="selectedRaceId" class="text-body1">
+                  {{ getSelectedRaceName() }} - {{ formatDate(getSelectedRaceDate()) }}
+                </div>
+              </template>
               <template v-slot:option="{ opt, selected, toggleOption }">
                 <q-item clickable @click="toggleOption(opt)">
                   <q-item-section avatar>
@@ -132,6 +137,16 @@
                :label="`${store.getLegEstimatedTime(currentLeg)} min`"
                size="lg"
              />
+             
+             <!-- Show runner's estimated time if different from leg's estimated time -->
+             <q-chip
+               v-if="store.getLegEstimatedTimeByRunner(currentLeg) && 
+                      store.getLegEstimatedTimeByRunner(currentLeg) !== store.getLegEstimatedTime(currentLeg)"
+               color="teal"
+               text-color="white"
+               :label="`${store.getLegEstimatedTimeByRunner(currentLeg)} min (runner)`"
+               size="lg"
+             />
           </div>
           
           <!-- Runner Assignment -->
@@ -144,6 +159,117 @@
             />
             <div class="text-caption q-mt-xs">
               Pace: {{ getRunnerPace(currentLeg.runnerId) }} / mile
+            </div>
+            
+            <!-- Performance Comparison for Completed Legs -->
+            <div v-if="currentLeg.isCompleted" class="q-mt-md">
+              <div class="text-subtitle2 q-mb-sm">Performance vs Estimated</div>
+              <div class="row q-gutter-md justify-center">
+                <div class="col-12 col-md-6">
+                  <q-card class="text-center" :class="getLegPerformanceClass(currentLeg)">
+                    <q-card-section>
+                      <div class="text-h6 q-mb-sm">
+                        {{ formatLegPerformance(currentLeg) }}
+                      </div>
+                      <div class="text-caption">
+                        {{ getLegPerformanceMessage(currentLeg) }}
+                      </div>
+                    </q-card-section>
+                  </q-card>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Quick Time Recording - Only show when authenticated -->
+            <div v-if="store.isAuthenticated" class="q-mt-md">
+              <div class="text-subtitle2 q-mb-sm">Record Completion Time</div>
+              
+              <!-- Current Time Display -->
+              <div class="text-caption q-mb-sm text-center">
+                Current Time: {{ formatCurrentTime() }}
+              </div>
+              
+              <!-- Quick Start Button -->
+              <div class="q-mb-md">
+                <q-btn
+                  color="blue"
+                  icon="schedule"
+                  label="Set Current Time"
+                  @click="setCurrentTime"
+                  class="full-width"
+                />
+              </div>
+              
+              <!-- DateTime Picker -->
+              <div class="q-mb-md">
+                <div class="row q-gutter-md">
+                  <div class="col-12 col-md-6">
+                    <q-input
+                      v-model="completionDate"
+                      label="Completion Date"
+                      outlined
+                      dense
+                      class="full-width"
+                      readonly
+                    >
+                      <template v-slot:append>
+                        <q-icon name="event" class="cursor-pointer">
+                          <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                            <q-date
+                              v-model="completionDate"
+                              mask="YYYY-MM-DD"
+                            />
+                          </q-popup-proxy>
+                        </q-icon>
+                      </template>
+                    </q-input>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <q-input
+                      v-model="completionTime"
+                      label="Completion Time"
+                      outlined
+                      dense
+                      class="full-width"
+                      readonly
+                    >
+                      <template v-slot:append>
+                        <q-icon name="access_time" class="cursor-pointer">
+                          <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                            <q-time
+                              v-model="completionTime"
+                              mask="hh:mm A"
+                              format24h
+                            />
+                          </q-popup-proxy>
+                        </q-icon>
+                      </template>
+                    </q-input>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="q-mt-sm">
+                <q-btn
+                  color="green"
+                  icon="timer"
+                  label="Record Completion"
+                  @click="recordCompletionTime"
+                  :loading="isRecordingTime"
+                  :disable="!completionDateTime"
+                  class="full-width"
+                />
+              </div>
+            </div>
+            
+            <!-- Show message when not authenticated -->
+            <div v-else class="q-mt-md">
+              <q-chip
+                color="orange"
+                text-color="white"
+                label="Sign in to record completion times"
+                size="md"
+              />
             </div>
           </div>
           <div v-else class="q-mt-md">
@@ -181,11 +307,120 @@
       </q-card-section>
     </q-card>
 
+    <!-- Performance Dashboard -->
+    <q-card v-if="store.teamPerformanceMetrics" class="q-mb-lg">
+      <q-card-section>
+        <div class="text-h6 q-mb-md">Performance Dashboard</div>
+        
+        <!-- Overall Team Performance -->
+        <div class="row q-gutter-md q-mb-lg">
+          <div class="col-12 col-md-4">
+            <q-card class="text-center" :class="getPerformanceCardClass(store.teamPerformanceMetrics.overallPercentageDifference)">
+              <q-card-section>
+                <div class="text-h5 q-mb-sm">
+                  {{ formatTimeDifference(store.teamPerformanceMetrics.totalDifferenceMinutes) }}
+                </div>
+                <div class="text-caption">
+                  {{ store.teamPerformanceMetrics.overallPercentageDifference > 0 ? 'Slower' : 'Faster' }} than Estimated
+                </div>
+                <div class="text-caption text-grey-6">
+                  {{ store.teamPerformanceMetrics.overallPercentageDifference.toFixed(1) }}% difference
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+          
+          <div class="col-12 col-md-4">
+            <q-card class="text-center bg-green-1">
+              <q-card-section>
+                <div class="text-h5 text-green q-mb-sm">{{ store.teamPerformanceMetrics.fasterLegs }}</div>
+                <div class="text-caption">Legs Faster than Estimated</div>
+                <div class="text-caption text-grey-6">
+                  {{ store.teamPerformanceMetrics.totalLegs > 0 ? ((store.teamPerformanceMetrics.fasterLegs / store.teamPerformanceMetrics.totalLegs) * 100).toFixed(0) : 0 }}% of completed
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+          
+          <div class="col-12 col-md-4">
+            <q-card class="text-center bg-orange-1">
+              <q-card-section>
+                <div class="text-h5 text-orange q-mb-sm">{{ store.teamPerformanceMetrics.slowerLegs }}</div>
+                <div class="text-caption">Legs Slower than Estimated</div>
+                <div class="text-caption text-grey-6">
+                  {{ store.teamPerformanceMetrics.totalLegs > 0 ? ((store.teamPerformanceMetrics.slowerLegs / store.teamPerformanceMetrics.totalLegs) * 100).toFixed(0) : 0 }}% of completed
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+        </div>
+        
+        <!-- Performance Chart -->
+        <div class="q-mb-lg">
+          <div class="text-subtitle2 q-mb-sm">Performance Distribution</div>
+          <div class="row q-gutter-sm">
+            <div class="col-12 col-md-6">
+              <div class="text-caption q-mb-xs">Faster Legs (Green)</div>
+              <q-linear-progress
+                :value="store.teamPerformanceMetrics.totalLegs > 0 ? store.teamPerformanceMetrics.fasterLegs / store.teamPerformanceMetrics.totalLegs : 0"
+                color="green"
+                size="lg"
+              />
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="text-caption q-mb-xs">Slower Legs (Orange)</div>
+              <q-linear-progress
+                :value="store.teamPerformanceMetrics.totalLegs > 0 ? store.teamPerformanceMetrics.slowerLegs / store.teamPerformanceMetrics.totalLegs : 0"
+                color="orange"
+                size="lg"
+              />
+            </div>
+          </div>
+        </div>
+        
+        <!-- Individual Runner Performance -->
+        <div v-if="store.runnerPerformanceMetrics.length > 0">
+          <div class="text-subtitle2 q-mb-sm">Individual Runner Performance</div>
+          <div class="row q-gutter-md">
+            <div 
+              v-for="runner in store.runnerPerformanceMetrics.filter(r => r.completedLegs > 0)" 
+              :key="runner.runnerId"
+              class="col-12 col-md-6 col-lg-4"
+            >
+              <q-card class="text-center" :class="getRunnerPerformanceCardClass(runner.averagePaceDifference)">
+                <q-card-section>
+                  <div class="text-subtitle1 q-mb-sm">{{ runner.runnerName }}</div>
+                  <div class="text-h6 q-mb-sm">
+                    {{ formatTimeDifference(runner.averagePaceDifference) }}
+                  </div>
+                  <div class="text-caption">
+                    Average per leg ({{ runner.completedLegs }} legs)
+                  </div>
+                  <div class="row q-gutter-xs q-mt-sm">
+                    <div class="col-6">
+                      <q-chip size="sm" color="green" text-color="white">
+                        {{ runner.fasterLegs }}
+                      </q-chip>
+                    </div>
+                    <div class="col-6">
+                      <q-chip size="sm" color="orange" text-color="white">
+                        {{ runner.slowerLegs }}
+                      </q-chip>
+                    </div>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+          </div>
+        </div>
+      </q-card-section>
+    </q-card>
+
     <!-- Quick Actions -->
     <q-card>
       <q-card-section>
         <div class="text-h6 q-mb-md">Quick Actions</div>
-        <div class="row q-gutter-md">
+        <div v-if="store.isAuthenticated" class="row q-gutter-md">
           <div class="col-12 col-md-6">
             <q-btn
               color="primary"
@@ -207,21 +442,43 @@
             />
           </div>
         </div>
+        <div v-else class="text-center q-pa-md">
+          <q-chip
+            color="orange"
+            text-color="white"
+            label="Sign in to access quick actions"
+            size="md"
+          />
+        </div>
       </q-card-section>
     </q-card>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
+import { useQuasar } from 'quasar';
+import { useHoodToCoastStore, type Race, type Leg } from '../stores/hood-to-coast-store';
 
 const router = useRouter();
 const store = useHoodToCoastStore();
+const $q = useQuasar(); // Initialize Quasar
 
 // Race selector
-const selectedRaceId = ref(store.currentRaceId);
+const selectedRaceId = ref(store.currentRaceId || null);
+
+// Watch for changes and update store
+watch(selectedRaceId, (newValue) => {
+  if (newValue) {
+    store.setCurrentRace(newValue);
+  }
+});
+
+// Watch store changes and update local state
+watch(() => store.currentRaceId, (newValue) => {
+  selectedRaceId.value = newValue;
+});
 
 // Access store properties directly without destructuring
 const currentTeam = computed(() => store.currentTeam);
@@ -236,8 +493,34 @@ const progressPercentage = computed(() => store.progressPercentage);
 // Race options for selector
 const raceOptions = computed(() => store.races);
 
+// Quick Time Recording State
+const completionDate = ref<string | null>(null);
+const completionTime = ref<string | null>(null);
+const isRecordingTime = ref(false);
+
+// Computed property for display and validation
+const completionDateTime = computed(() => {
+  if (completionDate.value && completionTime.value) {
+    return `${completionDate.value} ${completionTime.value}`;
+  }
+  return null;
+});
+
 // Methods
-function formatDate(date: Date): string {
+function getSelectedRaceName(): string {
+  if (!selectedRaceId.value) return '';
+  const race = raceOptions.value.find(r => r.id === selectedRaceId.value);
+  return race ? race.name : '';
+}
+
+function getSelectedRaceDate(): Date | null {
+  if (!selectedRaceId.value) return null;
+  const race = raceOptions.value.find(r => r.id === selectedRaceId.value);
+  return race ? new Date(race.date) : null;
+}
+
+function formatDate(date: Date | null): string {
+  if (!date) return 'No date';
   return new Date(date).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -245,8 +528,9 @@ function formatDate(date: Date): string {
   });
 }
 
-function onRaceChange(raceId: string) {
-  if (raceId) {
+function onRaceChange(race: Race) {
+  if (race && race.id) {
+    const raceId = race.id;
     store.setCurrentRace(raceId);
   }
 }
@@ -289,6 +573,11 @@ function formatFinishTime(finishTime: Date): string {
   return new Date(finishTime).toLocaleString();
 }
 
+function formatCurrentTime(): string {
+  const now = new Date();
+  return now.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric' });
+}
+
 function editCurrentLeg() {
   if (currentLeg.value) {
     void router.push({
@@ -305,5 +594,132 @@ function recordTime() {
       query: { leg: currentLeg.value.id }
     });
   }
+}
+
+function recordCompletionTime() {
+  if (currentLeg.value && completionDate.value && completionTime.value && currentTeam.value) {
+    // Parse the AM/PM time format and combine with date
+    const timeString = completionTime.value; // e.g., "2:30 PM"
+    const parts = timeString.split(' ');
+    if (parts.length !== 2) return;
+    
+    const [timePart, period] = parts;
+    if (!timePart || !period) return;
+    
+    const timeComponents = timePart.split(':');
+    if (timeComponents.length !== 2) return;
+    
+    const [hours, minutes] = timeComponents;
+    if (!hours || !minutes) return;
+    
+    let hour = parseInt(hours);
+    if (period === 'PM' && hour !== 12) {
+      hour += 12;
+    } else if (period === 'AM' && hour === 12) {
+      hour = 0;
+    }
+    
+    const dateTimeString = `${completionDate.value}T${hour.toString().padStart(2, '0')}:${minutes}:00`;
+    const completionDateTime = new Date(dateTimeString);
+    
+    store.recordLegCompletionTime(currentLeg.value.id, completionDateTime);
+    
+    // Reset form
+    completionDate.value = null;
+    completionTime.value = null;
+    
+    isRecordingTime.value = true;
+    setTimeout(() => {
+      isRecordingTime.value = false;
+    }, 1000);
+
+    $q.notify({
+      message: 'Time recorded successfully!',
+      color: 'green',
+      icon: 'check_circle',
+      position: 'top-right',
+      timeout: 2000,
+    });
+  }
+}
+
+function setCurrentTime() {
+  const now = new Date();
+  completionDate.value = now.toISOString().slice(0, 10); // Format as YYYY-MM-DD
+  completionTime.value = now.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    hour12: true 
+  }); // Format as h:mm AM/PM
+}
+
+function getPerformanceCardClass(difference: number): string {
+  if (difference > 0) {
+    return 'bg-orange-1 text-orange-8';
+  } else if (difference < 0) {
+    return 'bg-green-1 text-green-8';
+  }
+  return '';
+}
+
+function formatTimeDifference(minutes: number): string {
+  const absMinutes = Math.abs(minutes);
+  const hours = Math.floor(absMinutes / 60);
+  const remainingMinutes = absMinutes % 60;
+  const sign = minutes < 0 ? '-' : '+';
+  return `${sign}${hours}h ${remainingMinutes}m`;
+}
+
+function getRunnerPerformanceCardClass(difference: number): string {
+  if (difference > 0) {
+    return 'bg-green-1 text-green-8';
+  } else if (difference < 0) {
+    return 'bg-orange-1 text-orange-8';
+  }
+  return '';
+}
+
+function getLegPerformanceClass(leg: Leg): string {
+  if (leg.isCompleted) {
+    const comparison = store.getLegTimeComparison(leg);
+    if (comparison.differenceMinutes !== null) {
+      if (comparison.differenceMinutes > 0) {
+        return 'bg-orange-1 text-orange-8';
+      } else if (comparison.differenceMinutes < 0) {
+        return 'bg-green-1 text-green-8';
+      }
+    }
+  }
+  return '';
+}
+
+function formatLegPerformance(leg: Leg): string {
+  if (leg.isCompleted) {
+    const comparison = store.getLegTimeComparison(leg);
+    if (comparison.differenceMinutes !== null) {
+      const absDifference = Math.abs(comparison.differenceMinutes);
+      const hours = Math.floor(absDifference / 60);
+      const remainingMinutes = absDifference % 60;
+      const sign = comparison.differenceMinutes < 0 ? '-' : '+';
+      return `${sign}${hours}h ${remainingMinutes}m`;
+    }
+  }
+  return 'N/A';
+}
+
+function getLegPerformanceMessage(leg: Leg): string {
+  if (leg.isCompleted) {
+    const comparison = store.getLegTimeComparison(leg);
+    if (comparison.differenceMinutes !== null) {
+      if (comparison.differenceMinutes > 0) {
+        return 'Slower than estimated';
+      } else if (comparison.differenceMinutes < 0) {
+        return 'Faster than estimated';
+      } else {
+        return 'On pace with estimated';
+      }
+    }
+  }
+  return 'Leg not completed';
 }
 </script>

@@ -112,9 +112,41 @@
               label="Race Date"
               outlined
               dense
-              type="date"
+              readonly
               :rules="[val => !!val || 'Race date is required']"
-            />
+            >
+              <template v-slot:append>
+                <q-icon name="event" class="cursor-pointer">
+                  <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                    <q-date
+                      v-model="newRaceForm.date"
+                      mask="YYYY-MM-DD"
+                    />
+                  </q-popup-proxy>
+                </q-icon>
+              </template>
+            </q-input>
+
+            <q-input
+              v-model="newRaceForm.startTime"
+              label="Start Time"
+              outlined
+              dense
+              readonly
+              :rules="[val => !!val || 'Start time is required']"
+            >
+              <template v-slot:append>
+                <q-icon name="access_time" class="cursor-pointer">
+                  <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                    <q-time
+                      v-model="newRaceForm.startTime"
+                      mask="hh:mm A"
+                      format24h
+                    />
+                  </q-popup-proxy>
+                </q-icon>
+              </template>
+            </q-input>
 
             <q-input
               v-model="newRaceForm.teamName"
@@ -122,15 +154,6 @@
               outlined
               dense
               :rules="[val => !!val || 'Team name is required']"
-            />
-
-            <q-input
-              v-model="newRaceForm.startTime"
-              label="Start Time"
-              outlined
-              dense
-              type="time"
-              :rules="[val => !!val || 'Start time is required']"
             />
           </q-form>
         </q-card-section>
@@ -173,9 +196,20 @@
               label="New Race Date"
               outlined
               dense
-              type="date"
+              readonly
               :rules="[val => !!val || 'Race date is required']"
-            />
+            >
+              <template v-slot:append>
+                <q-icon name="event" class="cursor-pointer">
+                  <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                    <q-date
+                      v-model="duplicateForm.date"
+                      mask="YYYY-MM-DD"
+                    />
+                  </q-popup-proxy>
+                </q-icon>
+              </template>
+            </q-input>
           </q-form>
         </q-card-section>
 
@@ -335,8 +369,11 @@ function createNewRace() {
   }
 
   const raceDate = new Date(newRaceForm.date);
-  const timeParts = newRaceForm.startTime.split(':');
-  if (timeParts.length !== 2) {
+  
+  // Parse the AM/PM time format (e.g., "2:30 PM")
+  const timeString = newRaceForm.startTime;
+  const parts = timeString.split(' ');
+  if (parts.length !== 2) {
     $q.notify({
       type: 'negative',
       message: 'Invalid time format'
@@ -344,10 +381,42 @@ function createNewRace() {
     return;
   }
   
-  const hours = parseInt(timeParts[0] || '0');
-  const minutes = parseInt(timeParts[1] || '0');
+  const [timePart, period] = parts;
+  if (!timePart || !period) {
+    $q.notify({
+      type: 'negative',
+      message: 'Invalid time format'
+    });
+    return;
+  }
+  
+  const timeComponents = timePart.split(':');
+  if (timeComponents.length !== 2) {
+    $q.notify({
+      type: 'negative',
+      message: 'Invalid time format'
+    });
+    return;
+  }
+  
+  const [hours, minutes] = timeComponents;
+  if (!hours || !minutes) {
+    $q.notify({
+      type: 'negative',
+      message: 'Invalid time format'
+    });
+    return;
+  }
+  
+  let hour = parseInt(hours);
+  if (period === 'PM' && hour !== 12) {
+    hour += 12;
+  } else if (period === 'AM' && hour === 12) {
+    hour = 0;
+  }
+  
   const startTime = new Date(raceDate);
-  startTime.setHours(hours, minutes, 0, 0);
+  startTime.setHours(hour, parseInt(minutes), 0, 0);
 
   const newRace = store.createRace({
     name: newRaceForm.name,

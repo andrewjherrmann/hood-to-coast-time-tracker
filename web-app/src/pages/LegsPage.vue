@@ -22,7 +22,7 @@
           <q-item
             v-for="leg in sortedLegs"
             :key="leg.id"
-            :class="leg.completed ? 'bg-green-1' : 'bg-grey-1'"
+            :class="leg.isCompleted ? 'bg-green-1' : 'bg-grey-1'"
             class="leg-item q-mb-sm"
             draggable="true"
             @dragstart="onDragStart($event, leg)"
@@ -32,7 +32,7 @@
           >
             <q-item-section avatar>
               <q-avatar
-                :color="leg.completed ? 'green' : 'grey'"
+                :color="leg.isCompleted ? 'green' : 'grey'"
                 text-color="white"
                 size="md"
                 class="leg-number"
@@ -62,9 +62,9 @@
                   size="sm"
                 />
                 <q-chip
-                  :color="leg.completed ? 'green' : 'grey'"
+                  :color="leg.isCompleted ? 'green' : 'grey'"
                   text-color="white"
-                  :label="leg.completed ? 'Completed' : 'Pending'"
+                  :label="leg.isCompleted ? 'Completed' : 'Pending'"
                   size="sm"
                 />
               </div>
@@ -83,7 +83,7 @@
                 />
               </div>
 
-              <div v-if="leg.completed" class="q-mt-sm">
+              <div v-if="leg.isCompleted" class="q-mt-sm">
                 <q-separator class="q-my-sm" />
                 <div class="text-caption">
                   <div>Runner: {{ getRunnerName(leg.runnerId) }}</div>

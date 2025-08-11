@@ -73,7 +73,7 @@
                     <q-chip
                       v-for="leg in getAssignedLegs(runner.id)"
                       :key="leg.id"
-                      :color="leg.completed ? 'green' : 'blue'"
+                      :color="leg.isCompleted ? 'green' : 'blue'"
                       text-color="white"
                       :label="`Leg ${leg.order} (${leg.distance} mi)`"
                       size="xs"

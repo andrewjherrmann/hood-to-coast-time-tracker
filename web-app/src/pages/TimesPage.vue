@@ -212,7 +212,7 @@ const legOptions = computed(() => {
   if (!team) return [];
   
   return team.legs
-    .filter(leg => !leg.completed) // Only show uncompleted legs
+    .filter(leg => !leg.isCompleted) // Only show uncompleted legs
     .map(leg => ({
                   label: `Leg ${leg.order} (${leg.distance} mi)`,
       value: leg.id

@@ -1,4 +1,4 @@
-import { defineRouter } from '#q-app/wrappers';
+import { route } from 'quasar/wrappers';
 import {
   createMemoryHistory,
   createRouter,
@@ -8,15 +8,25 @@ import {
 import routes from './routes';
 
 /*
- * If not building with SSR mode, you can
- * directly export the Router instantiation;
+ * When adding new routes to this file, they will be automatically
+ * included in the build. Only add routes that you can see in the app.
  *
- * The function below can be async too; either use
- * async/await or return a Promise which resolves
- * with the Router instance.
+ * If the route has a name, it will be added as well.
+ * You can pass the following as meta to inject additional query parameters.
+ *
+ * ```ts
+ * {
+ *   path: '/profile/:username',
+ *   name: 'profile',
+ *   component: () => import('pages/ProfilePage.vue'),
+ *   meta: {
+ *     isPublic: true
+ *   }
+ * }
+ * ```
  */
 
-export default defineRouter(function (/* { store, ssrContext } */) {
+export default route(function (/* { store, ssrContext } */) {
   const createHistory = process.env.SERVER
     ? createMemoryHistory
     : (process.env.VUE_ROUTER_MODE === 'history' ? createWebHistory : createWebHashHistory);
@@ -30,6 +40,9 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     // quasar.conf.js -> build -> publicPath
     history: createHistory(process.env.VUE_ROUTER_BASE),
   });
+
+  // Navigation guard removed - causing authentication state issues
+  // Will implement proper route protection in components instead
 
   return Router;
 });
