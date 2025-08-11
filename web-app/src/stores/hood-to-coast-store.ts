@@ -1,23 +1,34 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 
-export interface Leg {
+// Types
+export interface Runner {
   id: string;
   name: string;
-  distance: number; // in miles
+  email: string;
+  phone: string;
+  estimatedPaceMinutes: number;
+  estimatedPaceSeconds: number;
+}
+
+export interface Leg {
+  id: string;
+  description?: string;
+  distance: number;
   difficulty: 'Easy' | 'Medium' | 'Hard' | 'Very Hard';
-  estimatedTime: number; // in minutes
-  actualTime?: number; // in minutes
-  runner?: string;
-  completed: boolean;
+  estimatedPaceMinutes: number;
+  estimatedPaceSeconds: number;
   order: number;
+  completed: boolean;
+  actualTime?: number;
+  runnerId?: string; // Now references a runner instead of just runner name
 }
 
 export interface TimeEntry {
   id: string;
   legId: string;
-  runner: string;
-  actualTime: number; // in minutes
+  runnerId: string;
+  actualTime: number;
   timestamp: Date;
   notes?: string;
 }
@@ -28,87 +39,98 @@ export interface Team {
   startTime: Date;
   legs: Leg[];
   times: TimeEntry[];
+  runners: Runner[];
 }
 
-export const useHoodToCoastStore = defineStore('hoodToCoast', () => {
+// Store
+export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   // State
   const currentTeam = ref<Team | null>(null);
   const isMockMode = ref(true);
   const isLoading = ref(false);
+  const isAuthenticated = ref(false);
+  const currentUser = ref<{ id: string; email: string; name: string } | null>(null);
 
   // Mock data
   const mockTeam: Team = {
     id: 'mock-team-1',
-    name: 'Mock Team',
-    startTime: new Date('2024-08-23T06:00:00'),
+    name: 'Mock Team Alpha',
+    startTime: new Date('2024-08-24T06:00:00'),
+    runners: [
+      {
+        id: 'runner-1',
+        name: 'John Doe',
+        email: 'john@example.com',
+        phone: '555-0101',
+        estimatedPaceMinutes: 8,
+        estimatedPaceSeconds: 30
+      },
+      {
+        id: 'runner-2',
+        name: 'Jane Smith',
+        email: 'jane@example.com',
+        phone: '555-0102',
+        estimatedPaceMinutes: 9,
+        estimatedPaceSeconds: 15
+      },
+      {
+        id: 'runner-3',
+        name: 'Mike Johnson',
+        email: 'mike@example.com',
+        phone: '555-0103',
+        estimatedPaceMinutes: 7,
+        estimatedPaceSeconds: 45
+      }
+    ],
     legs: [
       {
         id: 'leg-1',
-        name: 'Leg 1 - Start to Exchange 1',
-        distance: 5.8,
+        description: 'Start to Exchange 1 - Flat terrain through downtown',
+        distance: 5.2,
         difficulty: 'Easy',
-        estimatedTime: 45,
+        estimatedPaceMinutes: 8,
+        estimatedPaceSeconds: 30,
+        order: 1,
         completed: false,
-        order: 1
+        runnerId: 'runner-1'
       },
       {
         id: 'leg-2',
-        name: 'Leg 2 - Exchange 1 to Exchange 2',
-        distance: 6.2,
+        description: 'Exchange 1 to Exchange 2 - Rolling hills on country roads',
+        distance: 6.8,
         difficulty: 'Medium',
-        estimatedTime: 52,
+        estimatedPaceMinutes: 8,
+        estimatedPaceSeconds: 30,
+        order: 2,
         completed: false,
-        order: 2
+        runnerId: 'runner-2'
       },
       {
         id: 'leg-3',
-        name: 'Leg 3 - Exchange 2 to Exchange 3',
-        distance: 4.1,
+        description: 'Exchange 2 to Exchange 3 - Steep climbs in forest area',
+        distance: 4.5,
         difficulty: 'Hard',
-        estimatedTime: 38,
+        estimatedPaceMinutes: 9,
+        estimatedPaceSeconds: 15,
+        order: 3,
         completed: false,
-        order: 3
-      },
-      {
-        id: 'leg-4',
-        name: 'Leg 4 - Exchange 3 to Exchange 4',
-        distance: 7.5,
-        difficulty: 'Very Hard',
-        estimatedTime: 65,
-        completed: false,
-        order: 4
-      },
-      {
-        id: 'leg-5',
-        name: 'Leg 5 - Exchange 4 to Exchange 5',
-        distance: 5.3,
-        difficulty: 'Medium',
-        estimatedTime: 48,
-        completed: false,
-        order: 5
-      },
-      {
-        id: 'leg-6',
-        name: 'Leg 6 - Exchange 5 to Exchange 6',
-        distance: 6.8,
-        difficulty: 'Hard',
-        estimatedTime: 58,
-        completed: false,
-        order: 6
+        runnerId: 'runner-3'
       }
     ],
     times: []
   };
 
   // Initialize with mock data
-  if (!currentTeam.value) {
+  if (isMockMode.value) {
     currentTeam.value = mockTeam;
+    isAuthenticated.value = true;
+    currentUser.value = { id: 'user-1', email: 'admin@example.com', name: 'Admin User' };
   }
 
-  // Getters
+  // Computed
   const totalDistance = computed(() => {
     if (!currentTeam.value) return 0;
-    return currentTeam.value.legs.reduce((sum, leg) => sum + leg.distance, 0);
+    return currentTeam.value.legs.reduce((total, leg) => total + leg.distance, 0);
   });
 
   const completedLegs = computed(() => {
@@ -123,131 +145,181 @@ export const useHoodToCoastStore = defineStore('hoodToCoast', () => {
 
   const currentLeg = computed(() => {
     if (!currentTeam.value) return null;
-    return currentTeam.value.legs.find(leg => !leg.completed) || null;
+    return currentTeam.value.legs.find(leg => !leg.completed);
   });
 
+  // Helper function to calculate estimated time from pace and distance
+  function calculateEstimatedTime(paceMinutes: number, paceSeconds: number, distance: number): number {
+    const totalPaceSeconds = paceMinutes * 60 + paceSeconds;
+    const totalSeconds = totalPaceSeconds * distance;
+    return Math.round(totalSeconds / 60); // Return in minutes
+  }
+
+  // Helper function to get estimated time for a specific leg
+  function getLegEstimatedTime(leg: Leg): number {
+    return calculateEstimatedTime(leg.estimatedPaceMinutes, leg.estimatedPaceSeconds, leg.distance);
+  }
+
   const estimatedFinishTime = computed(() => {
-    if (!currentTeam.value) return null;
+    if (!currentTeam.value || !currentTeam.value.startTime) return null;
     
-    const startTime = new Date(currentTeam.value.startTime);
-    let totalTime = 0;
+    const totalEstimatedMinutes = currentTeam.value.legs.reduce((total, leg) => {
+      if (leg.runnerId) {
+        const runner = currentTeam.value!.runners.find(r => r.id === leg.runnerId);
+        if (runner) {
+          const pacePerMile = runner.estimatedPaceMinutes + (runner.estimatedPaceSeconds / 60);
+          return total + (leg.distance * pacePerMile);
+        }
+      }
+      // Calculate estimated time from leg's pace
+      return total + calculateEstimatedTime(leg.estimatedPaceMinutes, leg.estimatedPaceSeconds, leg.distance);
+    }, 0);
     
-    // Add completed legs
-    currentTeam.value.times.forEach(time => {
-      totalTime += time.actualTime;
-    });
-    
-    // Add estimated time for remaining legs
-    remainingLegs.value.forEach(leg => {
-      totalTime += leg.estimatedTime;
-    });
-    
-    const finishTime = new Date(startTime.getTime() + totalTime * 60000);
+    const finishTime = new Date(currentTeam.value.startTime);
+    finishTime.setMinutes(finishTime.getMinutes() + totalEstimatedMinutes);
     return finishTime;
   });
 
   const progressPercentage = computed(() => {
-    if (!currentTeam.value) return 0;
-    const completed = completedLegs.value.length;
-    const total = currentTeam.value.legs.length;
-    return total > 0 ? (completed / total) * 100 : 0;
+    if (!currentTeam.value || currentTeam.value.legs.length === 0) return 0;
+    return (completedLegs.value.length / currentTeam.value.legs.length) * 100;
   });
 
   // Actions
-  function completeLeg(legId: string, actualTime: number, runner: string) {
+  function addRunner(runner: Omit<Runner, 'id'>) {
+    if (!currentTeam.value) return;
+    
+    const newRunner: Runner = {
+      ...runner,
+      id: `runner-${Date.now()}`
+    };
+    
+    currentTeam.value.runners.push(newRunner);
+  }
+
+  function updateRunner(id: string, updates: Partial<Omit<Runner, 'id'>>) {
+    if (!currentTeam.value) return;
+    
+    const runner = currentTeam.value.runners.find(r => r.id === id);
+    if (runner) {
+      Object.assign(runner, updates);
+    }
+  }
+
+  function deleteRunner(id: string) {
+    if (!currentTeam.value) return;
+    
+    // Remove runner from legs first
+    currentTeam.value.legs.forEach(leg => {
+      if (leg.runnerId === id) {
+        delete leg.runnerId;
+      }
+    });
+    
+    // Remove runner from times
+    currentTeam.value.times = currentTeam.value.times.filter(time => time.runnerId !== id);
+    
+    // Remove runner
+    currentTeam.value.runners = currentTeam.value.runners.filter(r => r.id !== id);
+  }
+
+  function assignRunnerToLeg(legId: string, runnerId: string | undefined) {
+    if (!currentTeam.value) return;
+    
+    const leg = currentTeam.value.legs.find(l => l.id === legId);
+    if (leg) {
+      if (runnerId) {
+        leg.runnerId = runnerId;
+        // Note: We don't update the leg's pace when assigning a runner
+        // The leg keeps its own pace, but we can calculate estimated time
+        // based on either the leg's pace or the runner's pace
+      } else {
+        delete leg.runnerId;
+      }
+    }
+  }
+
+  function reorderLegs(newOrder: string[]) {
+    if (!currentTeam.value) return;
+    
+    // Create a map of leg ID to new order
+    const orderMap = new Map<string, number>();
+    newOrder.forEach((legId, index) => {
+      orderMap.set(legId, index + 1);
+    });
+    
+    // Update the order of all legs
+    currentTeam.value.legs.forEach(leg => {
+      if (orderMap.has(leg.id)) {
+        leg.order = orderMap.get(leg.id)!;
+      }
+    });
+    
+    // Sort legs by new order
+    currentTeam.value.legs.sort((a, b) => a.order - b.order);
+  }
+
+  function completeLeg(legId: string, actualTime: number, runnerId: string) {
     if (!currentTeam.value) return;
     
     const leg = currentTeam.value.legs.find(l => l.id === legId);
     if (leg) {
       leg.completed = true;
       leg.actualTime = actualTime;
-      leg.runner = runner;
+      leg.runnerId = runnerId;
       
       // Add time entry
       const timeEntry: TimeEntry = {
         id: `time-${Date.now()}`,
         legId,
-        runner,
+        runnerId,
         actualTime,
         timestamp: new Date(),
-        notes: `Completed ${leg.name}`
+        notes: ''
       };
       
       currentTeam.value.times.push(timeEntry);
     }
   }
 
-  function updateLeg(legId: string, updates: Partial<Leg>) {
+  function updateLeg(id: string, updates: Partial<Omit<Leg, 'id' | 'order' | 'completed'>>) {
     if (!currentTeam.value) return;
     
-    const leg = currentTeam.value.legs.find(l => l.id === legId);
+    const leg = currentTeam.value.legs.find(l => l.id === id);
     if (leg) {
       Object.assign(leg, updates);
+      // Note: We no longer update estimated time automatically
+      // The leg's pace determines the estimated time
     }
   }
 
-  function deleteLeg(legId: string) {
+  function deleteLeg(id: string) {
     if (!currentTeam.value) return;
     
-    const legIndex = currentTeam.value.legs.findIndex(l => l.id === legId);
-    if (legIndex !== -1) {
-      currentTeam.value.legs.splice(legIndex, 1);
-      
-      // Remove associated times
-      currentTeam.value.times = currentTeam.value.times.filter(t => t.legId !== legId);
-      
-      // Reorder remaining legs
-      currentTeam.value.legs.forEach((leg, index) => {
-        leg.order = index + 1;
-      });
-    }
-  }
-
-  function deleteTime(timeId: string) {
-    if (!currentTeam.value) return;
+    // Remove associated times
+    currentTeam.value.times = currentTeam.value.times.filter(time => time.legId !== id);
     
-    const timeIndex = currentTeam.value.times.findIndex(t => t.id === timeId);
-    if (timeIndex !== -1) {
-      const time = currentTeam.value.times[timeIndex];
-      
-      // Mark leg as incomplete if this was the completion time
-      if (time) {
-        const leg = currentTeam.value.legs.find(l => l.id === time.legId);
-        if (leg && leg.completed) {
-          leg.completed = false;
-          delete leg.actualTime;
-          delete leg.runner;
-        }
-      }
-      
-      currentTeam.value.times.splice(timeIndex, 1);
-    }
-  }
-
-  function clearAllData() {
-    if (!currentTeam.value) return;
+    // Remove leg
+    currentTeam.value.legs = currentTeam.value.legs.filter(leg => leg.id !== id);
     
-    currentTeam.value.legs.forEach(leg => {
-      leg.completed = false;
-      delete leg.actualTime;
-      delete leg.runner;
+    // Reorder remaining legs
+    currentTeam.value.legs.forEach((leg, index) => {
+      leg.order = index + 1;
     });
-    
-    currentTeam.value.times = [];
   }
 
   function addLeg(leg: Omit<Leg, 'id' | 'order' | 'completed'>) {
-  if (!currentTeam.value) return;
-  
-  const newLeg: Leg = {
-    ...leg,
-    id: `leg-${Date.now()}`,
-    order: currentTeam.value.legs.length + 1,
-    completed: false
-  };
-  
-  currentTeam.value.legs.push(newLeg);
-}
+    if (!currentTeam.value) return;
+    
+    const newLeg: Leg = {
+      ...leg,
+      id: `leg-${Date.now()}`,
+      order: currentTeam.value.legs.length + 1,
+      completed: false
+    };
+    
+    currentTeam.value.legs.push(newLeg);
+  }
 
   function addTime(time: Omit<TimeEntry, 'id' | 'timestamp'>) {
     if (!currentTeam.value) return;
@@ -259,10 +331,72 @@ export const useHoodToCoastStore = defineStore('hoodToCoast', () => {
     };
     
     currentTeam.value.times.push(newTime);
+    
+    // Mark leg as completed
+    const leg = currentTeam.value.legs.find(l => l.id === time.legId);
+    if (leg) {
+      leg.completed = true;
+      leg.actualTime = time.actualTime;
+      leg.runnerId = time.runnerId;
+    }
+  }
+
+  function deleteTime(timeId: string) {
+    if (!currentTeam.value) return;
+    
+    const time = currentTeam.value.times.find(t => t.id === timeId);
+    if (time) {
+      // Remove time entry
+      currentTeam.value.times = currentTeam.value.times.filter(t => t.id !== timeId);
+      
+      // Mark leg as incomplete if this was the completion time
+      const leg = currentTeam.value.legs.find(l => l.id === time.legId);
+      if (leg && leg.completed) {
+        leg.completed = false;
+        delete leg.actualTime;
+        delete leg.runnerId;
+      }
+    }
+  }
+
+  function clearAllData() {
+    if (!currentTeam.value) return;
+    
+    currentTeam.value.legs.forEach(leg => {
+      leg.completed = false;
+      delete leg.actualTime;
+      delete leg.runnerId;
+    });
+    
+    currentTeam.value.times = [];
   }
 
   function toggleMockMode() {
     isMockMode.value = !isMockMode.value;
+    if (isMockMode.value) {
+      currentTeam.value = mockTeam;
+      isAuthenticated.value = true;
+      currentUser.value = { id: 'user-1', email: 'admin@example.com', name: 'Admin User' };
+    } else {
+      currentTeam.value = null;
+      isAuthenticated.value = false;
+      currentUser.value = null;
+    }
+  }
+
+  function signIn(email: string, password: string) {
+    // Mock authentication
+    if (email === 'admin@example.com' && password === 'password') {
+      isAuthenticated.value = true;
+      currentUser.value = { id: 'user-1', email, name: 'Admin User' };
+      return true;
+    }
+    return false;
+  }
+
+  function signOut() {
+    isAuthenticated.value = false;
+    currentUser.value = null;
   }
 
   return {
@@ -270,8 +404,10 @@ export const useHoodToCoastStore = defineStore('hoodToCoast', () => {
     currentTeam,
     isMockMode,
     isLoading,
+    isAuthenticated,
+    currentUser,
     
-    // Getters
+    // Computed
     totalDistance,
     completedLegs,
     remainingLegs,
@@ -279,14 +415,25 @@ export const useHoodToCoastStore = defineStore('hoodToCoast', () => {
     estimatedFinishTime,
     progressPercentage,
     
+    // Helper functions
+    calculateEstimatedTime,
+    getLegEstimatedTime,
+    
     // Actions
+    addRunner,
+    updateRunner,
+    deleteRunner,
+    assignRunnerToLeg,
+    reorderLegs,
     completeLeg,
     updateLeg,
     deleteLeg,
-    deleteTime,
-    clearAllData,
     addLeg,
     addTime,
-    toggleMockMode
+    deleteTime,
+    clearAllData,
+    toggleMockMode,
+    signIn,
+    signOut
   };
 });

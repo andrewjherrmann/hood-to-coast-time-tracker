@@ -25,9 +25,7 @@
       bordered
     >
       <q-list>
-        <q-item-label
-          header
-        >
+        <q-item-label header>
           Navigation
         </q-item-label>
 
@@ -47,14 +45,20 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue';
+import EssentialLink from '../components/EssentialLink.vue';
 
-const linksList: EssentialLinkProps[] = [
+const leftDrawerOpen = ref(false);
+
+function toggleLeftDrawer() {
+  leftDrawerOpen.value = !leftDrawerOpen.value;
+}
+
+const linksList = [
   {
     title: 'Dashboard',
-    caption: 'Team progress and current leg',
+    caption: 'Race overview and progress',
     icon: 'dashboard',
-    link: '/'
+    link: '/dashboard'
   },
   {
     title: 'Legs',
@@ -64,21 +68,21 @@ const linksList: EssentialLinkProps[] = [
   },
   {
     title: 'Times',
-    caption: 'View and edit time entries',
-    icon: 'schedule',
+    caption: 'Record completion times',
+    icon: 'timer',
     link: '/times'
   },
   {
+    title: 'Runners',
+    caption: 'Manage team roster',
+    icon: 'people',
+    link: '/runners'
+  },
+  {
     title: 'Settings',
-    caption: 'Team settings and data management',
+    caption: 'App configuration',
     icon: 'settings',
     link: '/settings'
   }
 ];
-
-const leftDrawerOpen = ref(false);
-
-function toggleLeftDrawer () {
-  leftDrawerOpen.value = !leftDrawerOpen.value;
-}
 </script>

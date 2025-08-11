@@ -1,113 +1,125 @@
 <template>
   <q-page class="q-pa-md">
-    <!-- Header with team info and mock mode toggle -->
+    <!-- Header -->
     <div class="row items-center justify-between q-mb-lg">
       <div>
         <h4 class="q-my-none">{{ currentTeam?.name || 'Team Dashboard' }}</h4>
-        <p class="q-my-none text-grey-6">
-          Start Time: {{ formatTime(currentTeam?.startTime) }}
+        <p class="q-mt-sm q-mb-none text-grey-7">
+          Start Time: {{ formatStartTime(currentTeam?.startTime) }}
         </p>
       </div>
-      <q-toggle
-        v-model="isMockMode"
-        label="Mock Mode"
-        color="primary"
-        @update:model-value="toggleMockMode"
-      />
+      <div class="text-right">
+        <q-chip
+          :color="isMockMode ? 'orange' : 'green'"
+          text-color="white"
+          :label="isMockMode ? 'Mock Mode' : 'Live Mode'"
+          size="sm"
+        />
+      </div>
     </div>
 
     <!-- Progress Overview -->
+    <div class="row q-gutter-md q-mb-lg">
+      <div class="col-12 col-md-3">
+        <q-card class="text-center">
+          <q-card-section>
+            <div class="text-h4 text-primary">{{ totalDistance }}</div>
+            <div class="text-caption">Total Distance (miles)</div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="col-12 col-md-3">
+        <q-card class="text-center">
+          <q-card-section>
+            <div class="text-h4 text-green">{{ completedLegs.length }}</div>
+            <div class="text-caption">Completed Legs</div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="col-12 col-md-3">
+        <q-card class="text-center">
+          <q-card-section>
+            <div class="text-h4 text-blue">{{ remainingLegs.length }}</div>
+            <div class="text-caption">Remaining Legs</div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="col-12 col-md-3">
+        <q-card class="text-center">
+          <q-card-section>
+            <div class="text-h4 text-orange">{{ progressPercentage.toFixed(1) }}%</div>
+            <div class="text-caption">Progress</div>
+          </q-card-section>
+        </q-card>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
     <q-card class="q-mb-lg">
       <q-card-section>
-        <div class="row items-center justify-between">
-          <div>
-            <h6 class="q-my-none">Progress</h6>
-            <p class="q-my-none text-grey-6">
-              {{ completedLegs.length }} of {{ currentTeam?.legs.length || 0 }} legs completed
-            </p>
-          </div>
-          <div class="text-right">
-            <div class="text-h6 text-primary">{{ Math.round(progressPercentage) }}%</div>
-            <q-linear-progress
-              :value="progressPercentage / 100"
-              color="primary"
-              size="md"
-            />
-          </div>
+        <div class="text-subtitle2 q-mb-sm">Race Progress</div>
+        <q-linear-progress
+          :value="progressPercentage / 100"
+          color="primary"
+          size="lg"
+        />
+        <div class="text-caption q-mt-sm">
+          {{ completedLegs.length }} of {{ currentTeam?.legs.length || 0 }} legs completed
         </div>
       </q-card-section>
     </q-card>
 
-    <!-- Current Leg Carousel/Stepper -->
+    <!-- Current Leg Focus -->
     <q-card class="q-mb-lg">
       <q-card-section>
-        <h6 class="q-my-none q-mb-md">Current Leg</h6>
+        <div class="text-h6 q-mb-md">Current Focus</div>
         <div v-if="currentLeg" class="text-center">
-          <q-carousel
-            v-model="currentLegIndex"
-            animated
-            arrows
-            navigation
-            height="200px"
-            class="rounded-borders"
-          >
-            <q-carousel-slide
-              v-for="(leg, index) in remainingLegs"
-              :key="leg.id"
-              :name="index"
-              class="column no-wrap"
-            >
-              <div class="row fit justify-start items-center q-gutter-xs">
-                <div class="col-12">
-                  <div class="text-h5 text-weight-bold q-mb-sm">{{ leg.name }}</div>
-                  <div class="row justify-center q-gutter-md">
-                    <q-chip
-                      :color="getDifficultyColor(leg.difficulty)"
-                      text-color="white"
-                      :label="leg.difficulty"
-                    />
-                    <q-chip
-                      color="blue"
-                      text-color="white"
-                      :label="`${leg.distance} mi`"
-                    />
-                    <q-chip
-                      color="green"
-                      text-color="white"
-                      :label="`${leg.estimatedTime} min`"
-                    />
-                  </div>
-                </div>
-              </div>
-            </q-carousel-slide>
-          </q-carousel>
+                        <div class="text-h4 text-primary q-mb-sm">Leg {{ currentLeg.order }}</div>
+          <div class="row q-gutter-md justify-center">
+            <q-chip
+              :color="getDifficultyColor(currentLeg.difficulty)"
+              text-color="white"
+              :label="currentLeg.difficulty"
+              size="lg"
+            />
+            <q-chip
+              color="blue"
+              text-color="white"
+              :label="`${currentLeg.distance} mi`"
+              size="lg"
+            />
+                         <q-chip
+               color="green"
+               text-color="white"
+               :label="`${store.getLegEstimatedTime(currentLeg)} min`"
+               size="lg"
+             />
+          </div>
           
-          <!-- Current leg actions -->
-          <div class="q-mt-md">
-            <q-btn
-              color="primary"
-              label="Complete Leg"
-              @click="showCompleteLegDialog = true"
-              class="q-mr-sm"
+          <!-- Runner Assignment -->
+          <div v-if="currentLeg.runnerId" class="q-mt-md">
+            <q-chip
+              color="purple"
+              text-color="white"
+              :label="`Runner: ${getRunnerName(currentLeg.runnerId)}`"
+              size="md"
             />
-            <q-btn
-              outline
-              color="secondary"
-              label="Edit Leg"
-              @click="editLeg(currentLeg)"
-              class="q-mr-sm"
-            />
-            <q-btn
-              outline
-              color="accent"
-              label="Edit Time"
-              @click="editTime(currentLeg)"
+            <div class="text-caption q-mt-xs">
+              Pace: {{ getRunnerPace(currentLeg.runnerId) }} / mile
+            </div>
+          </div>
+          <div v-else class="q-mt-md">
+            <q-chip
+              color="grey"
+              text-color="white"
+              label="No Runner Assigned"
+              size="md"
             />
           </div>
         </div>
         <div v-else class="text-center text-grey-6">
-          <q-icon name="check_circle" size="48px" color="green" />
-          <p class="q-mt-sm">All legs completed! Great job!</p>
+          <q-icon name="flag" size="48px" />
+          <div class="text-h6 q-mt-sm">All legs completed!</div>
         </div>
       </q-card-section>
     </q-card>
@@ -115,14 +127,18 @@
     <!-- Estimated Finish Time -->
     <q-card class="q-mb-lg">
       <q-card-section>
-        <h6 class="q-my-none">Estimated Finish Time</h6>
-        <div class="text-center q-mt-md">
-          <div v-if="estimatedFinishTime" class="text-h4 text-primary">
-            {{ formatTime(estimatedFinishTime) }}
+        <div class="text-h6 q-mb-md">Estimated Finish Time</div>
+        <div v-if="estimatedFinishTime" class="text-center">
+          <div class="text-h4 text-green q-mb-sm">
+            {{ formatFinishTime(estimatedFinishTime) }}
           </div>
-          <div class="text-grey-6 q-mt-sm">
-            Total Distance: {{ totalDistance.toFixed(1) }} miles
+          <div class="text-caption">
+            Based on runner paces and completed legs
           </div>
+        </div>
+        <div v-else class="text-center text-grey-6">
+          <q-icon name="schedule" size="48px" />
+          <div class="text-h6 q-mt-sm">No start time set</div>
         </div>
       </q-card-section>
     </q-card>
@@ -130,96 +146,41 @@
     <!-- Quick Actions -->
     <q-card>
       <q-card-section>
-        <h6 class="q-my-none">Quick Actions</h6>
-        <div class="row q-gutter-md q-mt-md">
-          <q-btn
-            color="primary"
-            icon="list"
-            label="View All Legs"
-            @click="$router.push('/legs')"
-            class="col"
-          />
-          <q-btn
-            color="secondary"
-            icon="schedule"
-            label="View All Times"
-            @click="$router.push('/times')"
-            class="col"
-          />
-          <q-btn
-            color="accent"
-            icon="settings"
-            label="Settings"
-            @click="$router.push('/settings')"
-            class="col"
-          />
+        <div class="text-h6 q-mb-md">Quick Actions</div>
+        <div class="row q-gutter-md">
+          <div class="col-12 col-md-6">
+            <q-btn
+              color="primary"
+              icon="edit"
+              label="Edit Current Leg"
+              class="full-width"
+              @click="editCurrentLeg"
+              :disable="!currentLeg"
+            />
+          </div>
+          <div class="col-12 col-md-6">
+            <q-btn
+              color="secondary"
+              icon="timer"
+              label="Record Time"
+              class="full-width"
+              @click="recordTime"
+              :disable="!currentLeg"
+            />
+          </div>
         </div>
       </q-card-section>
     </q-card>
-
-    <!-- Complete Leg Dialog -->
-    <q-dialog v-model="showCompleteLegDialog">
-      <q-card style="min-width: 350px">
-        <q-card-section>
-          <div class="text-h6">Complete Leg</div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <q-input
-            v-model="completeLegForm.runner"
-            label="Runner Name"
-            outlined
-            dense
-            class="q-mb-md"
-          />
-          <q-input
-            v-model.number="completeLegForm.actualTime"
-            label="Actual Time (minutes)"
-            type="number"
-            outlined
-            dense
-            class="q-mb-md"
-          />
-          <q-input
-            v-model="completeLegForm.notes"
-            label="Notes (optional)"
-            outlined
-            dense
-            type="textarea"
-          />
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="primary" v-close-popup />
-          <q-btn
-            flat
-            label="Complete"
-            color="primary"
-            @click="handleCompleteLeg"
-            v-close-popup
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
 
 const router = useRouter();
 const store = useHoodToCoastStore();
-
-// Local state
-const showCompleteLegDialog = ref(false);
-const currentLegIndex = ref(0);
-const completeLegForm = ref({
-  runner: '',
-  actualTime: 0,
-  notes: ''
-});
 
 // Access store properties directly without destructuring
 const currentTeam = computed(() => store.currentTeam);
@@ -231,19 +192,7 @@ const currentLeg = computed(() => store.currentLeg);
 const estimatedFinishTime = computed(() => store.estimatedFinishTime);
 const progressPercentage = computed(() => store.progressPercentage);
 
-// Store functions
-const toggleMockMode = store.toggleMockMode;
-
 // Methods
-function formatTime(date: Date | undefined): string {
-  if (!date) return 'N/A';
-  return date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
-}
-
 function getDifficultyColor(difficulty: string): string {
   switch (difficulty) {
     case 'Easy': return 'green';
@@ -254,49 +203,49 @@ function getDifficultyColor(difficulty: string): string {
   }
 }
 
-function editLeg(leg: { id: string }) {
-  void router.push({
-    path: '/legs',
-    query: { edit: leg.id }
-  });
+function getRunnerName(runnerId?: string): string {
+  if (!runnerId) return 'Unassigned';
+  const team = currentTeam.value;
+  if (!team) return 'Unknown';
+  const runner = team.runners.find(r => r.id === runnerId);
+  return runner ? runner.name : 'Unknown';
 }
 
-function editTime(time: { id: string }) {
-  void router.push({
-    path: '/times',
-    query: { edit: time.id }
-  });
+function getRunnerPace(runnerId?: string): string {
+  if (!runnerId) return 'N/A';
+  const team = currentTeam.value;
+  if (!team) return 'N/A';
+  const runner = team.runners.find(r => r.id === runnerId);
+  if (runner) {
+    return `${runner.estimatedPaceMinutes}:${runner.estimatedPaceSeconds.toString().padStart(2, '0')}`;
+  }
+  return 'N/A';
 }
 
-function handleCompleteLeg() {
-  if (!currentLeg.value || !completeLegForm.value.runner || !completeLegForm.value.actualTime) {
-    return;
-  }
+function formatStartTime(startTime?: Date): string {
+  if (!startTime) return 'Not set';
+  return new Date(startTime).toLocaleString();
+}
 
-  store.completeLeg(
-    currentLeg.value.id,
-    completeLegForm.value.actualTime,
-    completeLegForm.value.runner
-  );
+function formatFinishTime(finishTime: Date): string {
+  return new Date(finishTime).toLocaleString();
+}
 
-  // Reset form
-  completeLegForm.value = {
-    runner: '',
-    actualTime: 0,
-    notes: ''
-  };
-
-  // Update carousel index
-  if (remainingLegs.value.length > 0) {
-    currentLegIndex.value = 0;
+function editCurrentLeg() {
+  if (currentLeg.value) {
+    void router.push({
+      path: '/legs',
+      query: { edit: currentLeg.value.id }
+    });
   }
 }
 
-// Watch for changes in remaining legs to update carousel
-import { watch } from 'vue';
-watch(remainingLegs, (newLegs) => {
-  if (newLegs.length > 0 && currentLegIndex.value >= newLegs.length) {
-    currentLegIndex.value = 0;
+function recordTime() {
+  if (currentLeg.value) {
+    void router.push({
+      path: '/times',
+      query: { leg: currentLeg.value.id }
+    });
   }
-});
+}
 </script>

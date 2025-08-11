@@ -25,20 +25,32 @@
                 <div class="row items-center justify-between">
                   <div class="text-h6">{{ getLegName(time.legId) }}</div>
                   <q-chip
-                    color="blue"
+                    color="green"
                     text-color="white"
-                    :label="`${time.actualTime} min`"
+                    label="Completed"
                     size="sm"
                   />
                 </div>
                 
                 <div class="q-mt-sm">
+                  <div class="text-caption text-grey-7">
+                    <q-icon name="person" size="xs" class="q-mr-xs" />
+                    {{ getRunnerName(time.runnerId) }}
+                  </div>
+                  <div class="text-caption text-grey-7">
+                    <q-icon name="timer" size="xs" class="q-mr-xs" />
+                    {{ time.actualTime }} minutes
+                  </div>
+                  <div class="text-caption text-grey-7">
+                    <q-icon name="schedule" size="xs" class="q-mr-xs" />
+                    {{ formatTimestamp(time.timestamp) }}
+                  </div>
+                </div>
+
+                <div v-if="time.notes" class="q-mt-sm">
+                  <q-separator class="q-my-sm" />
                   <div class="text-caption">
-                    <div><strong>Runner:</strong> {{ time.runner }}</div>
-                    <div><strong>Completed:</strong> {{ formatTime(time.timestamp) }}</div>
-                    <div v-if="time.notes" class="q-mt-xs">
-                      <strong>Notes:</strong> {{ time.notes }}
-                    </div>
+                    <strong>Notes:</strong> {{ time.notes }}
                   </div>
                 </div>
               </q-card-section>
@@ -76,23 +88,26 @@
           <q-form @submit="handleSaveTime" class="q-gutter-md">
             <q-select
               v-model="timeForm.legId"
-              :options="availableLegs"
-              option-label="name"
-              option-value="id"
-              label="Select Leg"
+              :options="legOptions"
+              label="Leg"
               outlined
               dense
+              emit-value
+              map-options
               :rules="[val => !!val || 'Leg is required']"
             />
-            
-            <q-input
-              v-model="timeForm.runner"
-              label="Runner Name"
+
+            <q-select
+              v-model="timeForm.runnerId"
+              :options="runnerOptions"
+              label="Runner"
               outlined
               dense
-              :rules="[val => !!val || 'Runner name is required']"
+              emit-value
+              map-options
+              :rules="[val => !!val || 'Runner is required']"
             />
-            
+
             <q-input
               v-model.number="timeForm.actualTime"
               label="Actual Time (minutes)"
@@ -105,9 +120,10 @@
             <q-input
               v-model="timeForm.notes"
               label="Notes (optional)"
+              type="textarea"
               outlined
               dense
-              type="textarea"
+              rows="3"
             />
 
             <div class="row justify-end q-gutter-sm">
@@ -155,17 +171,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import type { TimeEntry} from '../stores/hood-to-coast-store';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
-
-// Define the TimeEntry interface locally since it's not exported from the store
-interface TimeEntry {
-  id: string;
-  legId: string;
-  runner: string;
-  actualTime: number;
-  timestamp: Date;
-  notes?: string;
-}
 
 const route = useRoute();
 const store = useHoodToCoastStore();
@@ -181,7 +188,7 @@ const timeToDelete = ref<TimeEntry | null>(null);
 
 const timeForm = ref({
   legId: '',
-  runner: '',
+  runnerId: '',
   actualTime: 0,
   notes: ''
 });
@@ -190,15 +197,44 @@ const timeForm = ref({
 const sortedTimes = computed(() => {
   const team = currentTeam.value;
   if (!team) return [];
-  return [...team.times].sort((a, b) =>
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+  return [...team.times].sort((a, b) => {
+    const legA = team.legs.find(l => l.id === a.legId);
+    const legB = team.legs.find(l => l.id === b.legId);
+    if (legA && legB) {
+      return legA.order - legB.order;
+    }
+    return 0;
+  });
 });
 
-const availableLegs = computed(() => {
+const legOptions = computed(() => {
   const team = currentTeam.value;
   if (!team) return [];
-  return team.legs.filter(leg => !leg.completed);
+  
+  return team.legs
+    .filter(leg => !leg.completed) // Only show uncompleted legs
+    .map(leg => ({
+                  label: `Leg ${leg.order} (${leg.distance} mi)`,
+      value: leg.id
+    }))
+    .sort((a, b) => {
+      const legA = team.legs.find(l => l.id === a.value);
+      const legB = team.legs.find(l => l.id === b.value);
+      if (legA && legB) {
+        return legA.order - legB.order;
+      }
+      return 0;
+    });
+});
+
+const runnerOptions = computed(() => {
+  const team = currentTeam.value;
+  if (!team) return [];
+  
+  return team.runners.map(runner => ({
+    label: `${runner.name} (${runner.estimatedPaceMinutes}:${runner.estimatedPaceSeconds.toString().padStart(2, '0')}/mi)`,
+    value: runner.id
+  }));
 });
 
 // Methods
@@ -206,25 +242,25 @@ function getLegName(legId: string): string {
   const team = currentTeam.value;
   if (!team) return 'Unknown Leg';
   const leg = team.legs.find(l => l.id === legId);
-  return leg ? leg.name : 'Unknown Leg';
+      return leg ? `Leg ${leg.order}` : 'Unknown Leg';
 }
 
-function formatTime(date: Date): string {
-  return date.toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
+function getRunnerName(runnerId: string): string {
+  const team = currentTeam.value;
+  if (!team) return 'Unknown Runner';
+  const runner = team.runners.find(r => r.id === runnerId);
+  return runner ? runner.name : 'Unknown Runner';
+}
+
+function formatTimestamp(timestamp: Date): string {
+  return new Date(timestamp).toLocaleString();
 }
 
 function editTime(time: TimeEntry) {
   editingTime.value = time;
   timeForm.value = {
     legId: time.legId,
-    runner: time.runner,
+    runnerId: time.runnerId,
     actualTime: time.actualTime,
     notes: time.notes || ''
   };
@@ -245,17 +281,11 @@ function handleDeleteTime() {
 
 function handleSaveTime() {
   if (editingTime.value) {
-    // For now, delete and recreate since updateTime doesn't exist
+    // For editing, we need to remove the old time and add the new one
     store.deleteTime(editingTime.value.id);
   }
   
-  store.addTime({
-    legId: timeForm.value.legId,
-    runner: timeForm.value.runner,
-    actualTime: timeForm.value.actualTime,
-    notes: timeForm.value.notes
-  });
-  
+  store.addTime(timeForm.value);
   closeTimeDialog();
 }
 
@@ -264,7 +294,7 @@ function closeTimeDialog() {
   editingTime.value = null;
   timeForm.value = {
     legId: '',
-    runner: '',
+    runnerId: '',
     actualTime: 0,
     notes: ''
   };
@@ -272,14 +302,11 @@ function closeTimeDialog() {
 
 // Check if we should edit a specific time (from dashboard navigation)
 onMounted(() => {
-  const editLegId = route.query.edit as string;
-  if (editLegId) {
-    const team = currentTeam.value;
-    if (team) {
-      const time = team.times.find(t => t.legId === editLegId);
-      if (time) {
-        editTime(time);
-      }
+  const editTimeId = route.query.edit as string;
+  if (editTimeId) {
+    const time = currentTeam.value?.times.find(t => t.id === editTimeId);
+    if (time) {
+      editTime(time);
     }
   }
 });
