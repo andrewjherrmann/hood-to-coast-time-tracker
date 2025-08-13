@@ -466,7 +466,8 @@
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
-import { useHoodToCoastStore, type Race, type Leg } from '../stores/hood-to-coast-store';
+import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
+import type { Race, Leg } from '../types';
 
 const router = useRouter();
 const store = useHoodToCoastStore();

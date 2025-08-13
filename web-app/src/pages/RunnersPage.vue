@@ -195,7 +195,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useHoodToCoastStore, type Runner, type Leg } from '../stores/hood-to-coast-store';
+import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
+import type { Runner, Leg } from '../types';
 
 const store = useHoodToCoastStore();
 

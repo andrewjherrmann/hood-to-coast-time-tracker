@@ -175,7 +175,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import type { TimeEntry} from '../stores/hood-to-coast-store';
+import type { TimeEntry } from '../types';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
 
 const route = useRoute();

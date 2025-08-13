@@ -312,7 +312,8 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
-import { useHoodToCoastStore, type Race } from '../stores/hood-to-coast-store';
+import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
+import type { Race } from '../types';
 import { useQuasar } from 'quasar';
 
 const store = useHoodToCoastStore();

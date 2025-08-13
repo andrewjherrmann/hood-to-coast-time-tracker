@@ -254,7 +254,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { useHoodToCoastStore, type Leg } from '../stores/hood-to-coast-store';
+import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
+import type { Leg } from '../types';
 
 const route = useRoute();
 const store = useHoodToCoastStore();

@@ -1,6 +1,18 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { mockRaces } from './mock-data';
+import type { 
+  Runner, 
+  Leg, 
+  TimeEntry, 
+  Race, 
+  User, 
+  AuthSession, 
+  SessionInfo, 
+  TeamPerformanceMetrics, 
+  RunnerPerformanceMetrics, 
+  LegTimeComparison 
+} from '../types';
 
 /**
  * Hood to Coast Race Tracker Store
@@ -26,57 +38,6 @@ import { mockRaces } from './mock-data';
  * // (clicks, keydown, scroll events)
  */
 
-// Types
-export interface Runner {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  estimatedPaceMinutes: number;
-  estimatedPaceSeconds: number;
-}
-
-export interface Leg {
-  id: string;
-  description?: string;
-  distance: number;
-  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Very Hard';
-  vanNumber?: number;
-  estimatedPaceMinutes: number;
-  estimatedPaceSeconds: number;
-  order: number;
-  isCompleted: boolean;
-  actualTime?: Date;
-  runnerId?: string; // Now references a runner instead of just runner name
-}
-
-export interface TimeEntry {
-  id: string;
-  legId: string;
-  runnerId: string;
-  actualTime: number; // Individual leg completion time in minutes
-  cumulativeTime?: number; // Cumulative time from race start in minutes (optional)
-  timestamp: Date;
-  notes?: string;
-}
-
-export interface Team {
-  id: string;
-  name: string;
-  startTime: Date;
-  legs: Leg[];
-  times: TimeEntry[];
-  runners: Runner[];
-}
-
-export interface Race {
-  id: string;
-  name: string;
-  date: Date;
-  team: Team;
-  isActive: boolean;
-}
-
 // Store
 export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   // State
@@ -85,7 +46,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   const isMockMode = ref(true);
   const isLoading = ref(false);
   const isAuthenticated = ref(false);
-  const currentUser = ref<{ id: string; email: string; name: string } | null>(null);
+  const currentUser = ref<User | null>(null);
 
   // Authentication persistence
   const AUTH_STORAGE_KEY = 'htc-auth-session';
@@ -214,13 +175,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   }
 
   // Helper function to compare estimated vs actual time for a leg
-  function getLegTimeComparison(leg: Leg): {
-    estimatedMinutes: number;
-    actualMinutes: number | null;
-    differenceMinutes: number | null;
-    isFaster: boolean | null;
-    percentageDifference: number | null;
-  } {
+  function getLegTimeComparison(leg: Leg): LegTimeComparison {
     const estimatedByRunner = getLegEstimatedTimeByRunner(leg);
     const estimatedByLeg = getLegEstimatedTime(leg);
     const estimatedMinutes = estimatedByRunner || estimatedByLeg;
@@ -250,7 +205,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   }
 
   // Overall team performance metrics
-  const teamPerformanceMetrics = computed(() => {
+  const teamPerformanceMetrics = computed((): TeamPerformanceMetrics | null => {
     if (!currentTeam.value) return null;
     
     const completedLegsWithTimes = currentTeam.value.legs.filter(leg => leg.isCompleted);
@@ -301,7 +256,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   });
 
   // Individual runner performance
-  const runnerPerformanceMetrics = computed(() => {
+  const runnerPerformanceMetrics = computed((): RunnerPerformanceMetrics[] => {
     if (!currentTeam.value) return [];
     
     return currentTeam.value.runners.map(runner => {
@@ -614,8 +569,8 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   ];
 
   // Authentication persistence functions
-  function saveAuthSession(user: { id: string; email: string; name: string }) {
-    const sessionData = {
+  function saveAuthSession(user: User) {
+    const sessionData: AuthSession = {
       user,
       timestamp: Date.now(),
       expiresAt: Date.now() + SESSION_DURATION
@@ -623,12 +578,12 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionData));
   }
 
-  function loadAuthSession(): { id: string; email: string; name: string } | null {
+  function loadAuthSession(): User | null {
     try {
       const sessionData = localStorage.getItem(AUTH_STORAGE_KEY);
       if (!sessionData) return null;
 
-      const session = JSON.parse(sessionData);
+      const session: AuthSession = JSON.parse(sessionData);
       const now = Date.now();
 
       // Check if session has expired
@@ -674,14 +629,14 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     }
   }
 
-  function getSessionInfo() {
+  function getSessionInfo(): SessionInfo | null {
     if (!isAuthenticated.value || !currentUser.value) return null;
     
     try {
       const sessionData = localStorage.getItem(AUTH_STORAGE_KEY);
       if (!sessionData) return null;
       
-      const session = JSON.parse(sessionData);
+      const session: AuthSession = JSON.parse(sessionData);
       const now = Date.now();
       const timeRemaining = session.expiresAt - now;
       

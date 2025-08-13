@@ -1,4 +1,4 @@
-import type { Race } from './hood-to-coast-store';
+import type { Race } from '../types';
 
 // Mock data for development
 export const mockRaces: Race[] = [
