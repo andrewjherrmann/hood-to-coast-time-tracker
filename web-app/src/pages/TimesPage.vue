@@ -45,6 +45,10 @@
                     <q-icon name="schedule" size="xs" class="q-mr-xs" />
                     {{ formatTimestamp(time.timestamp) }}
                   </div>
+                  <div class="text-caption text-grey-7">
+                    <q-icon name="speed" size="xs" class="q-mr-xs" />
+                    Est: {{ getEstimatedTime(time.legId) }} min
+                  </div>
                 </div>
 
                 <div v-if="time.notes" class="q-mt-sm">
@@ -250,6 +254,14 @@ function getRunnerName(runnerId: string): string {
   if (!team) return 'Unknown Runner';
   const runner = team.runners.find(r => r.id === runnerId);
   return runner ? runner.name : 'Unknown Runner';
+}
+
+function getEstimatedTime(legId: string): number {
+  const team = currentTeam.value;
+  if (!team) return 0;
+  const leg = team.legs.find(l => l.id === legId);
+  if (!leg) return 0;
+  return store.getLegBestEstimatedTime(leg);
 }
 
 function formatTimestamp(timestamp: Date): string {

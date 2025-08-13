@@ -131,12 +131,19 @@
               :label="`${currentLeg.distance} mi`"
               size="lg"
             />
-                         <q-chip
-               color="green"
-               text-color="white"
-               :label="`${store.getLegEstimatedTime(currentLeg)} min`"
-               size="lg"
-             />
+            <q-chip
+              color="green"
+              text-color="white"
+              :label="`${store.getLegEstimatedTime(currentLeg)} min`"
+              size="lg"
+            />
+            <q-chip
+              v-if="store.estimatedFinishTime"
+              color="orange"
+              text-color="white"
+              :label="`Finish: ${formatFinishTime(store.estimatedFinishTime)}`"
+              size="lg"
+            />
              
              <!-- Show runner's estimated time if different from leg's estimated time -->
              <q-chip
@@ -318,7 +325,7 @@
             <q-card class="text-center" :class="getPerformanceCardClass(store.teamPerformanceMetrics.overallPercentageDifference)">
               <q-card-section>
                 <div class="text-h5 q-mb-sm">
-                  {{ formatTimeDifference(store.teamPerformanceMetrics.totalDifferenceMinutes) }}
+                  {{ formatTimeDifference(store.teamPerformanceMetrics.totalTimeDifference) }}
                 </div>
                 <div class="text-caption">
                   {{ store.teamPerformanceMetrics.overallPercentageDifference > 0 ? 'Slower' : 'Faster' }} than Estimated

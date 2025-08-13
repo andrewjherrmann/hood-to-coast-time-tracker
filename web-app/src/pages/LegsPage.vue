@@ -62,6 +62,14 @@
                   size="sm"
                 />
                 <q-chip
+                  v-if="store.getLegEstimatedTimeByRunner(leg) && 
+                         store.getLegEstimatedTimeByRunner(leg) !== store.getLegEstimatedTime(leg)"
+                  color="teal"
+                  text-color="white"
+                  :label="`${store.getLegEstimatedTimeByRunner(leg)} min (runner)`"
+                  size="sm"
+                />
+                <q-chip
                   :color="leg.isCompleted ? 'green' : 'grey'"
                   text-color="white"
                   :label="leg.isCompleted ? 'Completed' : 'Pending'"
@@ -87,7 +95,14 @@
                 <q-separator class="q-my-sm" />
                 <div class="text-caption">
                   <div>Runner: {{ getRunnerName(leg.runnerId) }}</div>
+                  <div>Estimated Time: {{ store.getLegBestEstimatedTime(leg) }} min</div>
                   <div>Actual Time: {{ leg.actualTime }} min</div>
+                  <div v-if="getLegPerformanceInfo(leg).hasComparison" 
+                       :class="getLegPerformanceInfo(leg).isFaster ? 'text-positive' : 'text-negative'">
+                    {{ getLegPerformanceInfo(leg).isFaster ? 'Faster' : 'Slower' }} by 
+                    {{ getLegPerformanceInfo(leg).differenceMinutes }} min
+                    ({{ getLegPerformanceInfo(leg).percentageDifference }}%)
+                  </div>
                 </div>
               </div>
             </q-item-section>
@@ -304,6 +319,25 @@ function getRunnerName(runnerId?: string): string {
   if (!team) return 'Unknown';
   const runner = team.runners.find(r => r.id === runnerId);
   return runner ? runner.name : 'Unknown';
+}
+
+function getLegPerformanceInfo(leg: Leg) {
+  const comparison = store.getLegTimeComparison(leg);
+  if (comparison.differenceMinutes === null) {
+    return {
+      hasComparison: false,
+      isFaster: false,
+      differenceMinutes: 0,
+      percentageDifference: 0
+    };
+  }
+  
+  return {
+    hasComparison: true,
+    isFaster: comparison.isFaster || false,
+    differenceMinutes: Math.abs(comparison.differenceMinutes),
+    percentageDifference: Math.abs(comparison.percentageDifference || 0)
+  };
 }
 
 function assignRunnerToLeg(legId: string, runnerId: string | undefined) {
