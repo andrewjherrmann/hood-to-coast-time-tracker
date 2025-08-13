@@ -51,7 +51,7 @@
               {{ race.team.legs.length }} Legs
             </q-chip>
             <q-chip size="sm" icon="timer">
-              {{ race.team.times.length }} Times
+              {{ race.team.legs.filter(leg => store.isLegCompleted(leg)).length }} Completed
             </q-chip>
           </div>
 
@@ -427,7 +427,7 @@ function createNewRace() {
       name: newRaceForm.teamName,
       startTime,
       legs: [],
-      times: [],
+      
       runners: []
     }
   });

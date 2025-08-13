@@ -8,7 +8,7 @@ const routes: RouteRecordRaw[] = [
       { path: '', redirect: '/dashboard' },
       { path: 'dashboard', name: 'dashboard', component: () => import('pages/DashboardPage.vue') },
       { path: 'legs', name: 'legs', component: () => import('pages/LegsPage.vue') },
-      { path: 'times', name: 'times', component: () => import('pages/TimesPage.vue') },
+
       { path: 'runners', name: 'runners', component: () => import('pages/RunnersPage.vue') },
       { path: 'races', name: 'races', component: () => import('pages/RacesPage.vue') },
       { path: 'settings', name: 'settings', component: () => import('pages/SettingsPage.vue') }

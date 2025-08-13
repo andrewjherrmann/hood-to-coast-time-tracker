@@ -18,17 +18,11 @@ export interface Leg {
   estimatedPaceMinutes: number;
   estimatedPaceSeconds: number;
   order: number;
-  isCompleted: boolean;
-  actualTime?: Date;
   runnerId?: string; // Now references a runner instead of just runner name
+  timeEntry?: TimeEntry; // Direct time entry for this leg
 }
 
 export interface TimeEntry {
-  id: string;
-  legId: string;
-  runnerId: string;
-  actualTime: number; // Individual leg completion time in minutes
-  cumulativeTime?: number; // Cumulative time from race start in minutes (optional)
   timestamp: Date;
   notes?: string;
 }
@@ -38,7 +32,6 @@ export interface Team {
   name: string;
   startTime: Date;
   legs: Leg[];
-  times: TimeEntry[];
   runners: Runner[];
 }
 

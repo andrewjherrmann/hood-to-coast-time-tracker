@@ -4,7 +4,6 @@ import { mockRaces } from './mock-data';
 import type { 
   Runner, 
   Leg, 
-  TimeEntry, 
   Race, 
   User, 
   AuthSession, 
@@ -118,17 +117,17 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
 
   const completedLegs = computed(() => {
     if (!currentTeam.value) return [];
-    return currentTeam.value.legs.filter(leg => leg.isCompleted);
+    return currentTeam.value.legs.filter(leg => leg.timeEntry);
   });
 
   const remainingLegs = computed(() => {
     if (!currentTeam.value) return [];
-    return currentTeam.value.legs.filter(leg => !leg.isCompleted);
+    return currentTeam.value.legs.filter(leg => !leg.timeEntry);
   });
 
   const currentLeg = computed(() => {
     if (!currentTeam.value) return null;
-    return currentTeam.value.legs.find(leg => !leg.isCompleted);
+    return currentTeam.value.legs.find(leg => !leg.timeEntry);
   });
 
   // Helper function to calculate estimated time from pace and distance
@@ -162,16 +161,19 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     return getLegEstimatedTime(leg);
   }
 
+  // Helper function to check if a leg is completed
+  function isLegCompleted(leg: Leg): boolean {
+    return !!leg.timeEntry;
+  }
+
   // Helper function to get actual time for a completed leg in minutes
   function getLegActualTime(leg: Leg): number | null {
-    if (!leg.isCompleted || !currentTeam.value) return null;
+    if (!leg.timeEntry || !currentTeam.value) return null;
     
-    // Find the corresponding time entry to get the actual time in minutes
-    const timeEntry = currentTeam.value.times.find(t => t.legId === leg.id);
-    if (!timeEntry) return null;
-    
-    // The actualTime field now stores individual leg completion times in minutes
-    return timeEntry.actualTime;
+    // Calculate actual time from timestamp and race start time
+    const startTime = new Date(currentTeam.value.startTime);
+    const actualTimeMinutes = Math.round((leg.timeEntry.timestamp.getTime() - startTime.getTime()) / (1000 * 60));
+    return actualTimeMinutes;
   }
 
   // Helper function to compare estimated vs actual time for a leg
@@ -208,7 +210,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   const teamPerformanceMetrics = computed((): TeamPerformanceMetrics | null => {
     if (!currentTeam.value) return null;
     
-    const completedLegsWithTimes = currentTeam.value.legs.filter(leg => leg.isCompleted);
+    const completedLegsWithTimes = currentTeam.value.legs.filter(leg => isLegCompleted(leg));
     if (completedLegsWithTimes.length === 0) return null;
     
     let totalEstimatedMinutes = 0;
@@ -261,7 +263,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     
     return currentTeam.value.runners.map(runner => {
       const runnerLegs = currentTeam.value!.legs.filter(leg => 
-        leg.runnerId === runner.id && leg.isCompleted
+        leg.runnerId === runner.id && isLegCompleted(leg)
       );
       
       if (runnerLegs.length === 0) {
@@ -321,30 +323,23 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     let totalEstimatedMinutes = 0;
     
     // Find the last completed leg to get the cumulative time
-    const completedLegs = currentTeam.value.legs.filter(leg => leg.isCompleted).sort((a, b) => a.order - b.order);
+    const completedLegs = currentTeam.value.legs.filter(leg => isLegCompleted(leg)).sort((a, b) => a.order - b.order);
     
     if (completedLegs.length > 0) {
       const lastCompletedLeg = completedLegs[completedLegs.length - 1];
       if (lastCompletedLeg) {
-        const lastTimeEntry = currentTeam.value.times.find(t => t.legId === lastCompletedLeg.id);
-        
-        if (lastTimeEntry && lastTimeEntry.cumulativeTime !== undefined) {
-          // Start with the cumulative time from the last completed leg
-          totalEstimatedMinutes = lastTimeEntry.cumulativeTime;
-        } else {
-          // Fallback: sum up all individual completed leg times
-          completedLegs.forEach(leg => {
-            const actualTime = getLegActualTime(leg);
-            if (actualTime !== null) {
-              totalEstimatedMinutes += actualTime;
-            }
-          });
-        }
+        // Calculate cumulative time from completed legs
+        completedLegs.forEach(leg => {
+          const actualTime = getLegActualTime(leg);
+          if (actualTime !== null) {
+            totalEstimatedMinutes += actualTime;
+          }
+        });
       }
     }
     
     // Add estimated times for remaining legs
-    const remainingLegs = currentTeam.value.legs.filter(leg => !leg.isCompleted);
+    const remainingLegs = currentTeam.value.legs.filter(leg => !isLegCompleted(leg));
     remainingLegs.forEach(leg => {
       if (leg.runnerId) {
         const runner = currentTeam.value!.runners.find(r => r.id === leg.runnerId);
@@ -399,8 +394,16 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
       }
     });
     
-    // Remove runner from times
-    currentTeam.value.times = currentTeam.value.times.filter(time => time.runnerId !== id);
+    // Remove runner from legs (times are now embedded in legs)
+    currentTeam.value.legs.forEach(leg => {
+      if (leg.runnerId === id) {
+        delete leg.runnerId;
+        // Clear time entry if it exists
+        if (leg.timeEntry) {
+          delete leg.timeEntry;
+        }
+      }
+    });
     
     // Remove runner
     currentTeam.value.runners = currentTeam.value.runners.filter(r => r.id !== id);
@@ -447,25 +450,17 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     
     const leg = currentTeam.value.legs.find(l => l.id === legId);
     if (leg) {
-      leg.isCompleted = true;
-      leg.actualTime = new Date(actualTime);
       leg.runnerId = runnerId;
       
-      // Add time entry
-      const timeEntry: TimeEntry = {
-        id: `time-${Date.now()}`,
-        legId,
-        runnerId,
-        actualTime,
-        timestamp: new Date(),
+      // Add time entry directly to the leg
+      leg.timeEntry = {
+        timestamp: new Date(actualTime),
         notes: ''
       };
-      
-      currentTeam.value.times.push(timeEntry);
     }
   }
 
-  function updateLeg(id: string, updates: Partial<Omit<Leg, 'id' | 'order' | 'isCompleted'>>) {
+  function updateLeg(id: string, updates: Partial<Omit<Leg, 'id' | 'order'>>) {
     if (!currentTeam.value) return;
     
     const leg = currentTeam.value.legs.find(l => l.id === id);
@@ -479,10 +474,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   function deleteLeg(id: string) {
     if (!currentTeam.value) return;
     
-    // Remove associated times
-    currentTeam.value.times = currentTeam.value.times.filter(time => time.legId !== id);
-    
-    // Remove leg
+    // Remove leg (time entry is embedded, so it goes with the leg)
     currentTeam.value.legs = currentTeam.value.legs.filter(leg => leg.id !== id);
     
     // Reorder remaining legs
@@ -491,67 +483,28 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     });
   }
 
-  function addLeg(leg: Omit<Leg, 'id' | 'order' | 'isCompleted'>) {
+  function addLeg(leg: Omit<Leg, 'id' | 'order'>) {
     if (!currentTeam.value) return;
     
     const newLeg: Leg = {
       ...leg,
       id: `leg-${Date.now()}`,
-      order: currentTeam.value.legs.length + 1,
-      isCompleted: false
+      order: currentTeam.value.legs.length + 1
     };
     
     currentTeam.value.legs.push(newLeg);
   }
 
-  function addTime(time: Omit<TimeEntry, 'id' | 'timestamp'>) {
-    if (!currentTeam.value) return;
-    
-    const newTime: TimeEntry = {
-      ...time,
-      id: `time-${Date.now()}`,
-      timestamp: new Date()
-    };
-    
-    currentTeam.value.times.push(newTime);
-    
-    // Mark leg as completed
-    const leg = currentTeam.value.legs.find(l => l.id === time.legId);
-    if (leg) {
-      leg.isCompleted = true;
-      leg.actualTime = new Date(time.actualTime);
-      leg.runnerId = time.runnerId;
-    }
-  }
-
-  function deleteTime(timeId: string) {
-    if (!currentTeam.value) return;
-    
-    const time = currentTeam.value.times.find(t => t.id === timeId);
-    if (time) {
-      // Remove time entry
-      currentTeam.value.times = currentTeam.value.times.filter(t => t.id !== timeId);
-      
-      // Mark leg as incomplete if this was the completion time
-      const leg = currentTeam.value.legs.find(l => l.id === time.legId);
-      if (leg && leg.isCompleted) {
-        leg.isCompleted = false;
-        delete leg.actualTime;
-        delete leg.runnerId;
-      }
-    }
-  }
+  // Note: Time management is now handled directly on legs via recordLegCompletionTime
+  // and the timeEntry property on each leg
 
   function clearAllData() {
     if (!currentTeam.value) return;
     
     currentTeam.value.legs.forEach(leg => {
-      leg.isCompleted = false;
-      delete leg.actualTime;
+      delete leg.timeEntry;
       delete leg.runnerId;
     });
-    
-    currentTeam.value.times = [];
   }
 
   function toggleMockMode() {
@@ -730,10 +683,8 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
         startTime: new Date(newDate.getTime() + (sourceRace.team.startTime.getTime() - sourceRace.date.getTime())),
         legs: sourceRace.team.legs.map(leg => ({
           ...leg,
-          id: `leg-${Date.now()}-${Math.random()}`,
-          isCompleted: false
+          id: `leg-${Date.now()}-${Math.random()}`
         })),
-        times: [],
         runners: sourceRace.team.runners.map(runner => ({
           ...runner,
           id: `runner-${Date.now()}-${Math.random()}`
@@ -775,24 +726,12 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     if (!currentTeam.value) return;
     
     const leg = currentTeam.value.legs.find(l => l.id === legId);
-    if (leg && !leg.isCompleted) {
-      leg.isCompleted = true;
-      leg.actualTime = completionTime;
-      
-      // Calculate the actual completion time in minutes from race start
-      const startTime = new Date(currentTeam.value.startTime);
-      const actualTimeMinutes = Math.round((completionTime.getTime() - startTime.getTime()) / (1000 * 60));
-      
-      const timeEntry: TimeEntry = {
-        id: `time-${Date.now()}`,
-        legId: leg.id,
-        runnerId: leg.runnerId || '',
-        actualTime: actualTimeMinutes, // Store in minutes, not milliseconds
-        timestamp: new Date(),
-        notes: 'Recorded from dashboard'
-      };
-      
-      currentTeam.value.times.push(timeEntry);
+    if (leg && !leg.timeEntry) {
+          // Add time entry directly to the leg
+    leg.timeEntry = {
+      timestamp: completionTime,
+      notes: 'Recorded from dashboard'
+    };
     }
   }
 
@@ -836,6 +775,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     getLegEstimatedTime,
     getLegEstimatedTimeByRunner,
     getLegBestEstimatedTime,
+    isLegCompleted,
     getLegActualTime,
     getLegTimeComparison,
     
@@ -849,8 +789,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     updateLeg,
     deleteLeg,
     addLeg,
-    addTime,
-    deleteTime,
+
     clearAllData,
     toggleMockMode,
     signIn,

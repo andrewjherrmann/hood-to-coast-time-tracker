@@ -164,12 +164,7 @@ const linksList = [
     icon: 'route',
     link: '/legs'
   },
-  {
-    title: 'Times',
-    caption: 'Record race times',
-    icon: 'timer',
-    link: '/times'
-  },
+
   {
     title: 'Runners',
     caption: 'Manage team runners',

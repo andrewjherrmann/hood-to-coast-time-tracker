@@ -22,7 +22,7 @@
           <q-item
             v-for="leg in sortedLegs"
             :key="leg.id"
-            :class="leg.isCompleted ? 'bg-green-1' : 'bg-grey-1'"
+            :class="store.isLegCompleted(leg) ? 'bg-green-1' : 'bg-grey-1'"
             class="leg-item q-mb-sm"
             draggable="true"
             @dragstart="onDragStart($event, leg)"
@@ -32,7 +32,7 @@
           >
             <q-item-section avatar>
               <q-avatar
-                :color="leg.isCompleted ? 'green' : 'grey'"
+                :color="store.isLegCompleted(leg) ? 'green' : 'grey'"
                 text-color="white"
                 size="md"
                 class="leg-number"
@@ -70,9 +70,9 @@
                   size="sm"
                 />
                 <q-chip
-                  :color="leg.isCompleted ? 'green' : 'grey'"
+                  :color="store.isLegCompleted(leg) ? 'green' : 'grey'"
                   text-color="white"
-                  :label="leg.isCompleted ? 'Completed' : 'Pending'"
+                  :label="store.isLegCompleted(leg) ? 'Completed' : 'Pending'"
                   size="sm"
                 />
               </div>
@@ -91,12 +91,12 @@
                 />
               </div>
 
-              <div v-if="leg.isCompleted" class="q-mt-sm">
+              <div v-if="store.isLegCompleted(leg)" class="q-mt-sm">
                 <q-separator class="q-my-sm" />
                 <div class="text-caption">
                   <div>Runner: {{ getRunnerName(leg.runnerId) }}</div>
                   <div>Estimated Time: {{ store.getLegBestEstimatedTime(leg) }} min</div>
-                  <div>Actual Time: {{ leg.actualTime }} min</div>
+                  <div>Actual Time: {{ store.getLegActualTime(leg) }} min</div>
                   <div v-if="getLegPerformanceInfo(leg).hasComparison" 
                        :class="getLegPerformanceInfo(leg).isFaster ? 'text-positive' : 'text-negative'">
                     {{ getLegPerformanceInfo(leg).isFaster ? 'Faster' : 'Slower' }} by 

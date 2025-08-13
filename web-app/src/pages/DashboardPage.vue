@@ -169,7 +169,7 @@
             </div>
             
             <!-- Performance Comparison for Completed Legs -->
-            <div v-if="currentLeg.isCompleted" class="q-mt-md">
+            <div v-if="store.isLegCompleted(currentLeg)" class="q-mt-md">
               <div class="text-subtitle2 q-mb-sm">Performance vs Estimated</div>
               <div class="row q-gutter-md justify-center">
                 <div class="col-12 col-md-6">
@@ -688,7 +688,7 @@ function getRunnerPerformanceCardClass(difference: number): string {
 }
 
 function getLegPerformanceClass(leg: Leg): string {
-  if (leg.isCompleted) {
+  if (store.isLegCompleted(leg)) {
     const comparison = store.getLegTimeComparison(leg);
     if (comparison.differenceMinutes !== null) {
       if (comparison.differenceMinutes > 0) {
@@ -702,7 +702,7 @@ function getLegPerformanceClass(leg: Leg): string {
 }
 
 function formatLegPerformance(leg: Leg): string {
-  if (leg.isCompleted) {
+  if (store.isLegCompleted(leg)) {
     const comparison = store.getLegTimeComparison(leg);
     if (comparison.differenceMinutes !== null) {
       const absDifference = Math.abs(comparison.differenceMinutes);
@@ -716,7 +716,7 @@ function formatLegPerformance(leg: Leg): string {
 }
 
 function getLegPerformanceMessage(leg: Leg): string {
-  if (leg.isCompleted) {
+  if (store.isLegCompleted(leg)) {
     const comparison = store.getLegTimeComparison(leg);
     if (comparison.differenceMinutes !== null) {
       if (comparison.differenceMinutes > 0) {
