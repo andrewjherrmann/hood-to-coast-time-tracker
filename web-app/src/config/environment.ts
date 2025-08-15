@@ -1,9 +1,16 @@
-// Configuration for Hood to Coast Time Tracker
+﻿// Configuration for Hood to Coast Time Tracker
 // Supports both mock mode and deployed mode
 
 // Environment detection
 const isDevelopment = process.env.NODE_ENV === 'development';
-const isMockMode = process.env.VITE_MOCK_MODE === 'true' || isDevelopment;
+
+// For production builds, we'll set this to true during the build process
+// This is a build-time constant that gets replaced during compilation
+const BUILD_TIME_MOCK_MODE = 'true';
+
+const isMockMode = BUILD_TIME_MOCK_MODE === 'true' || 
+                   process.env.VITE_MOCK_MODE === 'true' || 
+                   isDevelopment;
 
 // API configuration
 export const apiBaseUrl = isMockMode 
@@ -17,6 +24,15 @@ export const version = '1.0.0';
 // Mock mode configuration
 export const useMockData = isMockMode;
 
+// Debug logging
+console.log('Environment config debug:', {
+  NODE_ENV: process.env.NODE_ENV,
+  VITE_MOCK_MODE: process.env.VITE_MOCK_MODE,
+  isDevelopment,
+  isMockMode,
+  useMockData
+});
+
 // CDK deployment configuration
 export const cdkConfig = {
   region: process.env.VITE_AWS_REGION || 'us-east-1',
@@ -25,3 +41,4 @@ export const cdkConfig = {
   domainName: process.env.VITE_DOMAIN_NAME,
   subdomain: process.env.VITE_SUBDOMAIN,
 };
+

@@ -84,3 +84,4 @@ cdk.out/
 !yarn.lock
 infrastructure/config/local.js
 infrastructure/cdk.context.json
+web-app/.env.production

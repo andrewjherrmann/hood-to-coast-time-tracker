@@ -79,6 +79,26 @@ Set-Location $webAppDir
 $env:NODE_ENV = "production"
 $env:VITE_MOCK_MODE = "true"
 
+# Create a .env file with the required environment variables
+Write-Host "Creating .env file with VITE_MOCK_MODE=true..." -ForegroundColor Yellow
+$envFileContent = @"
+NODE_ENV=production
+VITE_MOCK_MODE=true
+"@
+$envFilePath = Join-Path $webAppDir ".env"
+$envFileContent | Out-File -FilePath $envFilePath -Encoding UTF8
+Write-Host "Created .env file at: $envFilePath" -ForegroundColor Green
+
+# Also replace the placeholder in the environment.ts file
+Write-Host "Updating environment.ts with build-time mock mode..." -ForegroundColor Yellow
+$envTsPath = Join-Path $webAppDir "src\config\environment.ts"
+$envTsContent = Get-Content $envTsPath -Raw
+$envTsContent = $envTsContent -replace 'BUILD_TIME_MOCK_MODE_PLACEHOLDER', 'true'
+$envTsContent | Out-File -FilePath $envTsPath -Encoding UTF8
+Write-Host "Updated environment.ts with BUILD_TIME_MOCK_MODE=true" -ForegroundColor Green
+
+# Build the frontend
+Write-Host "Building frontend..." -ForegroundColor Yellow
 yarn build
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Frontend build failed!" -ForegroundColor Red
@@ -102,7 +122,7 @@ if ($s3BucketOutput) {
 # Sync the built files to S3
 Write-Host "Uploading frontend to S3..." -ForegroundColor Yellow
 Set-Location $webAppDir
-$distPath = "dist/spa/*"
+$distPath = "dist/spa"
 aws s3 sync $distPath "s3://$bucketName" --region $Region --delete
 
 if ($LASTEXITCODE -eq 0) {
