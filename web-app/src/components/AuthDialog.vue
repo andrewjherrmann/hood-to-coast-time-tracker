@@ -9,9 +9,9 @@
         <q-form @submit="handleSubmit" class="q-gutter-md">
           <!-- Mock Credentials Hint -->
           <div class="q-mb-md">
-            <q-banner class="bg-blue-1 text-blue-9">
+            <q-banner class="bg-info-1 text-info-9">
               <template v-slot:avatar>
-                <q-icon name="info" color="blue" />
+                <q-icon name="info" color="info" />
               </template>
               <div><strong>Mock Mode:</strong> Available test accounts:</div>
               <div class="q-mt-xs">
