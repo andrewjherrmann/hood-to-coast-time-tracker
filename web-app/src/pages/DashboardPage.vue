@@ -30,23 +30,6 @@
                   {{ getSelectedRaceName() }} - {{ formatDate(getSelectedRaceDate()) }}
                 </div>
               </template>
-              <template v-slot:option="{ opt, selected, toggleOption }">
-                <q-item clickable @click="toggleOption(opt)">
-                  <q-item-section avatar>
-                    <q-icon 
-                      :name="opt.isActive ? 'check_circle' : 'flag'" 
-                      :color="opt.isActive ? 'green' : 'grey'"
-                    />
-                  </q-item-section>
-                  <q-item-section>
-                    <q-item-label>{{ opt.name }}</q-item-label>
-                    <q-item-label caption>{{ formatDate(opt.date) }}</q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <q-checkbox :model-value="selected" />
-                  </q-item-section>
-                </q-item>
-              </template>
             </q-select>
           </div>
         </div>
@@ -63,38 +46,38 @@
 
     <!-- Progress Overview -->
     <div class="row q-gutter-md q-mb-lg">
-      <div class="col-12 col-md-3">
-        <q-card class="text-center">
-          <q-card-section>
-            <div class="text-h4 text-primary">{{ totalDistance }}</div>
-            <div class="text-caption">Total Distance (miles)</div>
-          </q-card-section>
-        </q-card>
-      </div>
-      <div class="col-12 col-md-3">
-        <q-card class="text-center">
-          <q-card-section>
-            <div class="text-h4 text-green">{{ completedLegs.length }}</div>
-            <div class="text-caption">Completed Legs</div>
-          </q-card-section>
-        </q-card>
-      </div>
-      <div class="col-12 col-md-3">
-        <q-card class="text-center">
-          <q-card-section>
-            <div class="text-h4 text-blue">{{ remainingLegs.length }}</div>
-            <div class="text-caption">Remaining Legs</div>
-          </q-card-section>
-        </q-card>
-      </div>
-      <div class="col-12 col-md-3">
-        <q-card class="text-center">
-          <q-card-section>
-            <div class="text-h4 text-orange">{{ progressPercentage.toFixed(1) }}%</div>
-            <div class="text-caption">Progress</div>
-          </q-card-section>
-        </q-card>
-      </div>
+             <div class="col-12 col-md-3">
+         <q-card class="text-center">
+           <q-card-section>
+             <div class="text-h4 text-primary">{{ totalDistance }}</div>
+             <div class="text-caption">Total Distance (miles)</div>
+           </q-card-section>
+         </q-card>
+       </div>
+       <div class="col-12 col-md-3">
+         <q-card class="text-center">
+           <q-card-section>
+             <div class="text-h4 text-positive">{{ completedLegs.length }}</div>
+             <div class="text-caption">Completed Legs</div>
+           </q-card-section>
+         </q-card>
+       </div>
+       <div class="col-12 col-md-3">
+         <q-card class="text-center">
+           <q-card-section>
+             <div class="text-h4 text-info">{{ remainingLegs.length }}</div>
+             <div class="text-caption">Remaining Legs</div>
+           </q-card-section>
+         </q-card>
+       </div>
+       <div class="col-12 col-md-3">
+         <q-card class="text-center">
+           <q-card-section>
+             <div class="text-h4 text-secondary">{{ progressPercentage.toFixed(1) }}%</div>
+             <div class="text-caption">Progress</div>
+           </q-card-section>
+         </q-card>
+       </div>
     </div>
 
     <!-- Progress Bar -->
@@ -119,65 +102,65 @@
         <div v-if="currentLeg" class="text-center">
                         <div class="text-h4 text-primary q-mb-sm">Leg {{ currentLeg.order }}</div>
           <div class="row q-gutter-md justify-center">
-            <q-chip
-              :color="getDifficultyColor(currentLeg.difficulty)"
-              text-color="white"
-              :label="currentLeg.difficulty"
-              size="lg"
-            />
-            <q-chip
-              color="blue"
-              text-color="white"
-              :label="`${currentLeg.distance} mi`"
-              size="lg"
-            />
-            <q-chip
-              color="green"
-              text-color="white"
-              :label="`${store.getLegEstimatedTime(currentLeg)} min`"
-              size="lg"
-            />
                          <q-chip
-               v-if="store.actualFinishTime"
-               color="green"
+               :color="getDifficultyColor(currentLeg.difficulty)"
                text-color="white"
-               :label="`Finished: ${formatFinishTime(store.actualFinishTime)}`"
+               :label="currentLeg.difficulty"
                size="lg"
              />
              <q-chip
-               v-else-if="store.currentEstimatedFinishTime"
-               color="orange"
+               color="primary"
                text-color="white"
-               :label="`Est. Finish: ${formatFinishTime(store.currentEstimatedFinishTime)}`"
+               :label="`${currentLeg.distance} mi`"
                size="lg"
              />
              <q-chip
-               v-else-if="store.originalEstimatedFinishTime"
-               color="blue"
+               color="secondary"
                text-color="white"
-               :label="`Est. Finish: ${formatFinishTime(store.originalEstimatedFinishTime)}`"
+               :label="`${store.getLegEstimatedTime(currentLeg)} min`"
                size="lg"
              />
-             
-             <!-- Show runner's estimated time if different from leg's estimated time -->
-             <q-chip
-               v-if="store.getLegEstimatedTimeByRunner(currentLeg) && 
-                      store.getLegEstimatedTimeByRunner(currentLeg) !== store.getLegEstimatedTime(currentLeg)"
-               color="teal"
-               text-color="white"
-               :label="`${store.getLegEstimatedTimeByRunner(currentLeg)} min (runner)`"
-               size="lg"
-             />
+                          <q-chip
+                v-if="store.actualFinishTime"
+                color="positive"
+                text-color="white"
+                :label="`Finished: ${formatFinishTime(store.actualFinishTime)}`"
+                size="lg"
+              />
+              <q-chip
+                v-else-if="store.currentEstimatedFinishTime"
+                color="warning"
+                text-color="white"
+                :label="`Est. Finish: ${formatFinishTime(store.currentEstimatedFinishTime)}`"
+                size="lg"
+              />
+              <q-chip
+                v-else-if="store.originalEstimatedFinishTime"
+                color="info"
+                text-color="white"
+                :label="`Est. Finish: ${formatFinishTime(store.originalEstimatedFinishTime)}`"
+                size="lg"
+              />
+              
+              <!-- Show runner's estimated time if different from leg's estimated time -->
+              <q-chip
+                v-if="store.getLegEstimatedTimeByRunner(currentLeg) && 
+                       store.getLegEstimatedTimeByRunner(currentLeg) !== store.getLegEstimatedTime(currentLeg)"
+                color="accent"
+                text-color="white"
+                :label="`${store.getLegEstimatedTimeByRunner(currentLeg)} min (runner)`"
+                size="lg"
+              />
           </div>
           
-          <!-- Runner Assignment -->
-          <div v-if="currentLeg.runnerId" class="q-mt-md">
-            <q-chip
-              color="purple"
-              text-color="white"
-              :label="`Runner: ${getRunnerName(currentLeg.runnerId)}`"
-              size="md"
-            />
+                     <!-- Runner Assignment -->
+           <div v-if="currentLeg.runnerId" class="q-mt-md">
+             <q-chip
+               color="dark"
+               text-color="white"
+               :label="`Runner: ${getRunnerName(currentLeg.runnerId)}`"
+               size="md"
+             />
             <div class="text-caption q-mt-xs">
               Pace: {{ getRunnerPace(currentLeg.runnerId) }} / mile
             </div>
@@ -205,10 +188,10 @@
             <div v-if="store.isAuthenticated" class="q-mt-md">
               <div class="text-subtitle2 q-mb-sm">Record Completion Time</div>
               
-              <!-- Current Time Display -->
-              <div class="text-caption q-mb-sm text-center">
-                Current Time: {{ formatCurrentTime() }}
-              </div>
+                             <!-- Current Time Display -->
+               <div class="text-caption q-mb-sm text-center">
+                 Current Time: {{ formatCurrentTimeWithDate() }}
+               </div>
               
               <!-- Quick Start Button -->
               <div class="q-mb-md">
@@ -376,36 +359,27 @@
        <q-card-section>
          <div class="text-h6 q-mb-md">Race Completion Summary</div>
          <div class="row q-gutter-md">
-           <div class="col-12 col-md-4">
-             <q-card class="text-center bg-green-1">
-               <q-card-section>
-                 <div class="text-h5 text-green q-mb-sm">
-                   {{ formatTotalDuration(getTotalEstimatedDuration()) }}
-                 </div>
-                 <div class="text-caption">Estimated Total Duration</div>
-               </q-card-section>
-             </q-card>
-           </div>
-           <div class="col-12 col-md-4">
-             <q-card class="text-center bg-blue-1">
-               <q-card-section>
-                 <div class="text-h5 text-blue q-mb-sm">
-                   {{ formatTotalDuration(getTotalActualDuration()) }}
-                 </div>
-                 <div class="text-caption">Actual Total Duration</div>
-               </q-card-section>
-             </q-card>
-           </div>
-           <div class="col-12 col-md-4">
-             <q-card class="text-center bg-purple-1">
-               <q-card-section>
-                 <div class="text-h5 text-purple q-mb-sm">
-                   {{ formatCompletionTime(getRaceCompletionTime()) }}
-                 </div>
-                 <div class="text-caption">Race Completed At</div>
-               </q-card-section>
-             </q-card>
-           </div>
+                       <div class="col-12 col-md-6">
+              <q-card class="text-center bg-info-1">
+                <q-card-section>
+                  <div class="text-h5 text-info q-mb-sm">
+                    {{ formatTotalDuration(getTotalEstimatedDuration()) }}
+                  </div>
+                  <div class="text-caption">Estimated Total Duration</div>
+                </q-card-section>
+              </q-card>
+            </div>
+            <div class="col-12 col-md-6">
+              <q-card class="text-center bg-secondary-1">
+                <q-card-section>
+                  <div class="text-h5 text-secondary q-mb-sm">
+                    {{ formatTotalDuration(getTotalActualDuration()) }}
+                  </div>
+                  <div class="text-caption">Actual Total Duration</div>
+                </q-card-section>
+              </q-card>
+            </div>
+
          </div>
        </q-card-section>
      </q-card>
@@ -433,29 +407,29 @@
             </q-card>
           </div>
           
-          <div class="col-12 col-md-4">
-            <q-card class="text-center bg-green-1">
-              <q-card-section>
-                <div class="text-h5 text-green q-mb-sm">{{ store.teamPerformanceMetrics.fasterLegs }}</div>
-                <div class="text-caption">Legs Faster than Estimated</div>
-                <div class="text-caption text-grey-6">
-                  {{ store.teamPerformanceMetrics.totalLegs > 0 ? ((store.teamPerformanceMetrics.fasterLegs / store.teamPerformanceMetrics.totalLegs) * 100).toFixed(0) : 0 }}% of completed
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
-          
-          <div class="col-12 col-md-4">
-            <q-card class="text-center bg-orange-1">
-              <q-card-section>
-                <div class="text-h5 text-orange q-mb-sm">{{ store.teamPerformanceMetrics.slowerLegs }}</div>
-                <div class="text-caption">Legs Slower than Estimated</div>
-                <div class="text-caption text-grey-6">
-                  {{ store.teamPerformanceMetrics.totalLegs > 0 ? ((store.teamPerformanceMetrics.slowerLegs / store.teamPerformanceMetrics.totalLegs) * 100).toFixed(0) : 0 }}% of completed
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
+                     <div class="col-12 col-md-4">
+             <q-card class="text-center bg-positive-1">
+               <q-card-section>
+                 <div class="text-h5 text-positive q-mb-sm">{{ store.teamPerformanceMetrics.fasterLegs }}</div>
+                 <div class="text-caption">Legs Faster than Estimated</div>
+                 <div class="text-caption text-grey-6">
+                   {{ store.teamPerformanceMetrics.totalLegs > 0 ? ((store.teamPerformanceMetrics.fasterLegs / store.teamPerformanceMetrics.totalLegs) * 100).toFixed(0) : 0 }}% of completed
+                 </div>
+               </q-card-section>
+             </q-card>
+           </div>
+           
+           <div class="col-12 col-md-4">
+             <q-card class="text-center bg-warning-1">
+               <q-card-section>
+                 <div class="text-h5 text-warning q-mb-sm">{{ store.teamPerformanceMetrics.slowerLegs }}</div>
+                 <div class="text-caption">Legs Slower than Estimated</div>
+                 <div class="text-caption text-grey-6">
+                   {{ store.teamPerformanceMetrics.totalLegs > 0 ? ((store.teamPerformanceMetrics.slowerLegs / store.teamPerformanceMetrics.totalLegs) * 100).toFixed(0) : 0 }}% of completed
+                 </div>
+               </q-card-section>
+             </q-card>
+           </div>
         </div>
         
                  <!-- Performance Chart -->
@@ -619,10 +593,10 @@ function onRaceChange(race: Race) {
 
 function getDifficultyColor(difficulty: string): string {
   switch (difficulty) {
-    case 'Easy': return 'green';
-    case 'Medium': return 'blue';
-    case 'Hard': return 'orange';
-    case 'Very Hard': return 'red';
+    case 'Easy': return 'positive';
+    case 'Medium': return 'info';
+    case 'Hard': return 'warning';
+    case 'Very Hard': return 'negative';
     default: return 'grey';
   }
 }
@@ -655,9 +629,16 @@ function formatFinishTime(finishTime: Date): string {
   return store.formatDateTime(new Date(finishTime), true);
 }
 
-function formatCurrentTime(): string {
+function formatCurrentTimeWithDate(): string {
   const now = new Date();
-  return now.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric' });
+  return now.toLocaleString('en-US', { 
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric', 
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true 
+  });
 }
 
 function editCurrentLeg() {
@@ -759,9 +740,9 @@ function getLegPerformanceClass(leg: Leg): string {
     const comparison = store.getLegTimeComparison(leg);
     if (comparison.differenceMinutes !== null) {
       if (comparison.differenceMinutes > 0) {
-        return 'bg-orange-1 text-orange-8';
+        return 'bg-warning-1 text-warning-8';
       } else if (comparison.differenceMinutes < 0) {
-        return 'bg-green-1 text-green-8';
+        return 'bg-positive-1 text-positive-8';
       }
     }
   }
@@ -800,10 +781,7 @@ function getLegPerformanceMessage(leg: Leg): string {
 
 
 
-function formatCompletionTime(timestamp: Date | undefined): string {
-  if (!timestamp) return 'Not available';
-  return store.formatDateTime(timestamp, true);
-}
+
 
 function formatTotalDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
@@ -836,14 +814,5 @@ function getTotalActualDuration(): number {
   return Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
 }
 
-function getRaceCompletionTime(): Date | undefined {
-  if (!currentTeam.value) return undefined;
-  
-  // Find the last completed leg
-  const lastCompletedLeg = [...currentTeam.value.legs]
-    .filter(leg => store.isLegCompleted(leg))
-    .sort((a, b) => b.order - a.order)[0];
-  
-  return lastCompletedLeg?.timeEntry?.timestamp;
-}
+
 </script>

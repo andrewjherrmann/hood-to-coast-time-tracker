@@ -287,7 +287,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     
     const differenceMinutes = actualMinutes - estimatedMinutes;
     const isFaster = differenceMinutes < 0;
-    const percentageDifference = ((actualMinutes - estimatedMinutes) / estimatedMinutes) * 100;
+    const percentageDifference = Math.round(((actualMinutes - estimatedMinutes) / estimatedMinutes) * 1000) / 10;
     
     return {
       estimatedMinutes,
@@ -331,7 +331,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     
     // Calculate percentage difference based on total time difference vs total estimated time
     const overallPercentageDifference = totalEstimatedMinutes > 0 
-      ? (totalTimeDifference / totalEstimatedMinutes) * 100 
+      ? Math.round((totalTimeDifference / totalEstimatedMinutes) * 10000) / 100 
       : 0;
     
     return {
@@ -538,6 +538,12 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     
     const leg = currentTeam.value.legs.find(l => l.id === legId);
     if (leg) {
+      // Prevent assignment changes for completed legs
+      if (isLegCompleted(leg)) {
+        console.warn(`Cannot change runner assignment for completed leg ${legId}`);
+        return;
+      }
+      
       if (runnerId) {
         leg.runnerId = runnerId;
         // Note: We don't update the leg's pace when assigning a runner

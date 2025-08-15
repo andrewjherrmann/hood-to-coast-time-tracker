@@ -2,13 +2,44 @@
   <q-page class="q-pa-md">
     <!-- Header -->
     <div class="row items-center justify-between q-mb-lg">
-      <h4 class="q-my-none">Manage Legs</h4>
-      <q-btn
-        color="primary"
-        icon="add"
-        label="Add New Leg"
-        @click="showAddLegDialog = true"
-      />
+      <div class="col">
+        <h4 class="q-my-none">Manage Legs</h4>
+        <p class="q-mt-sm q-mb-none text-grey-7">
+          {{ currentTeam?.name || 'No team selected' }}
+        </p>
+      </div>
+      <div class="col-auto">
+        <div class="row q-gutter-md items-center">
+          <!-- Race Selector -->
+          <q-select
+            v-model="selectedRaceId"
+            :options="raceOptions"
+            option-label="name"
+            option-value="id"
+            label="Select Race"
+            outlined
+            dense
+            style="min-width: 200px;"
+            @update:model-value="onRaceChange"
+          >
+            <template v-slot:prepend>
+              <q-icon name="flag" />
+            </template>
+            <template v-slot:selected>
+              <div v-if="selectedRaceId" class="text-body1">
+                {{ getSelectedRaceName() }} - {{ formatDate(getSelectedRaceDate()) }}
+              </div>
+            </template>
+          </q-select>
+          
+          <q-btn
+            color="primary"
+            icon="add"
+            label="Add New Leg"
+            @click="showAddLegDialog = true"
+          />
+        </div>
+      </div>
     </div>
 
     <!-- Legs List -->
@@ -82,13 +113,20 @@
                 <q-select
                   v-model="leg.runnerId"
                   :options="runnerOptions"
-                  label="Assigned Runner"
+                  option-label="label"
+                  option-value="value"
+                  :label="store.isLegCompleted(leg) ? 'Assigned Runner (Completed - Cannot Change)' : 'Assigned Runner'"
                   outlined
                   dense
                   emit-value
                   map-options
+                  :disable="store.isLegCompleted(leg)"
+                  :color="store.isLegCompleted(leg) ? 'grey' : 'primary'"
                   @update:model-value="(value) => assignRunnerToLeg(leg.id, value)"
                 />
+                <div v-if="store.isLegCompleted(leg)" class="text-caption text-grey-6 q-mt-xs">
+                  Runner assignment is locked for completed legs
+                </div>
               </div>
 
               <div v-if="store.isLegCompleted(leg)" class="q-mt-sm">
@@ -279,16 +317,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
-import type { Leg } from '../types';
+import type { Leg, Race } from '../types';
 
 const route = useRoute();
 const store = useHoodToCoastStore();
 
 // Access store properties directly without destructuring
 const currentTeam = computed(() => store.currentTeam);
+
+// Race selector - default to current race if no race is set
+const selectedRaceId = ref(store.currentRaceId || getUpcomingRaceId());
+
+// Watch for changes and update store
+watch(selectedRaceId, (newValue) => {
+  if (newValue) {
+    store.setCurrentRace(newValue);
+  }
+});
+
+// Watch store changes and update local state
+watch(() => store.currentRaceId, (newValue) => {
+  selectedRaceId.value = newValue;
+});
+
+// Race options for selector
+const raceOptions = computed(() => store.races);
 
 // Drag and drop state
 const draggedLeg = ref<Leg | null>(null);
@@ -331,6 +387,47 @@ const runnerOptions = computed(() => {
 });
 
 // Methods
+function getUpcomingRaceId(): string | null {
+  if (store.races.length === 0) return null;
+  
+  const now = new Date();
+  const upcomingRaces = store.races.filter(race => new Date(race.date) > now);
+  
+  if (upcomingRaces.length > 0) {
+    // Return the earliest upcoming race
+    const sortedUpcoming = upcomingRaces.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return sortedUpcoming[0]?.id || null;
+  }
+  
+  // If no upcoming races, return the most recent past race
+  const sortedRaces = [...store.races].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return sortedRaces[0]?.id || null;
+}
+
+function getSelectedRaceName(): string {
+  if (!selectedRaceId.value) return '';
+  const race = raceOptions.value.find(r => r.id === selectedRaceId.value);
+  return race ? race.name : '';
+}
+
+function getSelectedRaceDate(): Date | null {
+  if (!selectedRaceId.value) return null;
+  const race = raceOptions.value.find(r => r.id === selectedRaceId.value);
+  return race ? new Date(race.date) : null;
+}
+
+function formatDate(date: Date | null): string {
+  if (!date) return 'No date';
+  return store.formatDateTime(new Date(date), false);
+}
+
+function onRaceChange(race: Race) {
+  if (race && race.id) {
+    const raceId = race.id;
+    store.setCurrentRace(raceId);
+  }
+}
+
 function formatTime(date: Date | null): string {
   if (!date) return 'Not available';
   return store.formatDateTime(date, true);
@@ -338,10 +435,10 @@ function formatTime(date: Date | null): string {
 
 function getDifficultyColor(difficulty: string): string {
   switch (difficulty) {
-    case 'Easy': return 'green';
-    case 'Medium': return 'blue';
-    case 'Hard': return 'orange';
-    case 'Very Hard': return 'red';
+    case 'Easy': return 'positive';
+    case 'Medium': return 'info';
+    case 'Hard': return 'warning';
+    case 'Very Hard': return 'negative';
     default: return 'grey';
   }
 }

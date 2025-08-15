@@ -2,13 +2,44 @@
   <q-page class="q-pa-md">
     <!-- Header -->
     <div class="row items-center justify-between q-mb-lg">
-      <h4 class="q-my-none">Manage Runners</h4>
-      <q-btn
-        color="primary"
-        icon="add"
-        label="Add New Runner"
-        @click="showAddRunnerDialog = true"
-      />
+      <div class="col">
+        <h4 class="q-my-none">Manage Runners</h4>
+        <p class="q-mt-sm q-mb-none text-grey-7">
+          {{ currentTeam?.name || 'No team selected' }}
+        </p>
+      </div>
+      <div class="col-auto">
+        <div class="row q-gutter-md items-center">
+          <!-- Race Selector -->
+          <q-select
+            v-model="selectedRaceId"
+            :options="raceOptions"
+            option-label="name"
+            option-value="id"
+            label="Select Race"
+            outlined
+            dense
+            style="min-width: 200px;"
+            @update:model-value="onRaceChange"
+          >
+            <template v-slot:prepend>
+              <q-icon name="flag" />
+            </template>
+            <template v-slot:selected>
+              <div v-if="selectedRaceId" class="text-body1">
+                {{ getSelectedRaceName() }} - {{ formatDate(getSelectedRaceDate()) }}
+              </div>
+            </template>
+          </q-select>
+          
+          <q-btn
+            color="primary"
+            icon="add"
+            label="Add New Runner"
+            @click="showAddRunnerDialog = true"
+          />
+        </div>
+      </div>
     </div>
 
     <!-- Runners List -->
@@ -235,14 +266,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
-import type { Runner, Leg } from '../types';
+import type { Runner, Leg, Race } from '../types';
 
 const store = useHoodToCoastStore();
 
 // Access store properties directly without destructuring
 const currentTeam = computed(() => store.currentTeam);
+
+// Race selector - default to current race if no race is set
+const selectedRaceId = ref(store.currentRaceId || null);
+
+// Watch for changes and update store
+watch(selectedRaceId, (newValue) => {
+  if (newValue) {
+    store.setCurrentRace(newValue);
+  }
+});
+
+// Watch store changes and update local state
+watch(() => store.currentRaceId, (newValue) => {
+  selectedRaceId.value = newValue;
+});
+
+// Race options for selector
+const raceOptions = computed(() => store.races);
 
 // Local state
 const showAddRunnerDialog = ref(false);
@@ -266,6 +315,32 @@ const sortedRunners = computed(() => {
 });
 
 // Methods
+
+
+function getSelectedRaceName(): string {
+  if (!selectedRaceId.value) return '';
+  const race = raceOptions.value.find(r => r.id === selectedRaceId.value);
+  return race ? race.name : '';
+}
+
+function getSelectedRaceDate(): Date | null {
+  if (!selectedRaceId.value) return null;
+  const race = raceOptions.value.find(r => r.id === selectedRaceId.value);
+  return race ? new Date(race.date) : null;
+}
+
+function formatDate(date: Date | null): string {
+  if (!date) return 'No date';
+  return store.formatDateTime(new Date(date), false);
+}
+
+function onRaceChange(race: Race) {
+  if (race && race.id) {
+    const raceId = race.id;
+    store.setCurrentRace(raceId);
+  }
+}
+
 function getAssignedLegs(runnerId: string): Leg[] {
   const team = currentTeam.value;
   if (!team) return [];

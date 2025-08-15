@@ -4,14 +4,41 @@
       <div class="col">
         <h4 class="q-mb-sm">Race Management</h4>
         <p class="text-grey-7">Create and manage your races</p>
+        <p class="q-mt-sm q-mb-none text-grey-7">
+          {{ currentTeam?.name || 'No team selected' }}
+        </p>
       </div>
       <div class="col-auto">
-        <q-btn
-          color="primary"
-          icon="add"
-          label="New Race"
-          @click="showNewRaceDialog = true"
-        />
+        <div class="row q-gutter-md items-center">
+          <!-- Race Selector -->
+          <q-select
+            v-model="selectedRaceId"
+            :options="raceOptions"
+            option-label="name"
+            option-value="id"
+            label="Select Race"
+            outlined
+            dense
+            style="min-width: 200px;"
+            @update:model-value="onRaceChange"
+          >
+            <template v-slot:prepend>
+              <q-icon name="flag" />
+            </template>
+            <template v-slot:selected>
+              <div v-if="selectedRaceId" class="text-body1">
+                {{ getSelectedRaceName() }} - {{ getSelectedRaceDate() ? formatDate(getSelectedRaceDate()!) : 'No date' }}
+              </div>
+            </template>
+          </q-select>
+          
+          <q-btn
+            color="primary"
+            icon="add"
+            label="New Race"
+            @click="showNewRaceDialog = true"
+          />
+        </div>
       </div>
     </div>
 
@@ -56,14 +83,6 @@
           </div>
 
           <div class="row q-gutter-sm">
-            <q-btn
-              v-if="!race.isActive"
-              size="sm"
-              color="green"
-              icon="play_arrow"
-              label="Activate"
-              @click="activateRace(race.id)"
-            />
             <q-btn
               size="sm"
               color="primary"
@@ -311,7 +330,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, watch } from 'vue';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
 import type { Race } from '../types';
 import { useQuasar } from 'quasar';
@@ -319,9 +338,30 @@ import { useQuasar } from 'quasar';
 const store = useHoodToCoastStore();
 const $q = useQuasar();
 
+// Access store properties directly without destructuring
+const currentTeam = computed(() => store.currentTeam);
+
+// Race selector - default to current race if no race is set
+const selectedRaceId = ref(store.currentRaceId || null);
+
+// Watch for changes and update store
+watch(selectedRaceId, (newValue) => {
+  if (newValue) {
+    store.setCurrentRace(newValue);
+  }
+});
+
+// Watch store changes and update local state
+watch(() => store.currentRaceId, (newValue) => {
+  selectedRaceId.value = newValue;
+});
+
+// Race options for selector
+const raceOptions = computed(() => store.races);
+
 // Computed property for sorted races (newest first)
 const sortedRaces = computed(() => {
-  return [...store.races].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return [...store.races].sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime());
 });
 
 // Dialog states
@@ -356,6 +396,25 @@ const raceToEdit = ref<Race | null>(null);
 const raceToDelete = ref<Race | null>(null);
 
 // Helper functions
+function getSelectedRaceName(): string {
+  if (!selectedRaceId.value) return '';
+  const race = raceOptions.value.find(r => r.id === selectedRaceId.value);
+  return race ? race.name : '';
+}
+
+function getSelectedRaceDate(): Date | null {
+  if (!selectedRaceId.value) return null;
+  const race = raceOptions.value.find(r => r.id === selectedRaceId.value);
+  return race ? new Date(race.date) : null;
+}
+
+function onRaceChange(race: Race) {
+  if (race && race.id) {
+    const raceId = race.id;
+    store.setCurrentRace(raceId);
+  }
+}
+
 function formatDate(date: Date): string {
   return store.formatDateTime(new Date(date), false);
 }
@@ -547,14 +606,7 @@ function confirmDeleteRaceAction() {
   }
 }
 
-function activateRace(raceId: string) {
-  store.setActiveRace(raceId);
-  store.setCurrentRace(raceId);
-  $q.notify({
-    type: 'positive',
-    message: 'Race activated successfully!'
-  });
-}
+
 </script>
 
 <style scoped>
