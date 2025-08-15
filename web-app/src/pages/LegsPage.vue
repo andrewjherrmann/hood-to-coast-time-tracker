@@ -397,57 +397,14 @@
         </q-card-section>
 
         <q-card-section class="q-pt-none">
-          <q-form @submit="handleSaveCompletionTime" class="q-gutter-md">
-            <q-input
+          <q-form @submit="handleSaveCompletionTime" class="q-gutter-md q-pl-md">
+            <CompletionDateInput
               v-model="completionTimeForm.date"
-              label="Completion Date (M/D/YYYY)"
-              outlined
-              dense
-              class="full-width"
-              placeholder="e.g., 8/23/2024"
-              :rules="[val => !!val || 'Date is required', val => isValidDate(val) || 'Invalid date format']"
-              @blur="formatDateInput"
-            >
-              <template v-slot:hint>
-                Enter date as M/D/YYYY (e.g., 8/23/2024)
-              </template>
-              <template v-slot:append>
-                <q-icon name="event" class="cursor-pointer">
-                  <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                    <q-date
-                      v-model="completionTimeForm.date"
-                      mask="M/D/YYYY"
-                    />
-                  </q-popup-proxy>
-                </q-icon>
-              </template>
-            </q-input>
+            />
 
-            <q-input
+            <CompletionTimeInput
               v-model="completionTimeForm.time"
-              label="Completion Time (h:mm AM/PM)"
-              outlined
-              dense
-              class="full-width"
-              placeholder="e.g., 2:30 PM"
-              :rules="[val => !!val || 'Time is required', val => isValidTime(val) || 'Invalid time format']"
-              @blur="formatTimeInput"
-            >
-              <template v-slot:hint>
-                Enter time as h:mm AM/PM (e.g., 2:30 PM)
-              </template>
-              <template v-slot:append>
-                <q-icon name="access_time" class="cursor-pointer">
-                  <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                    <q-time
-                      v-model="completionTimeForm.time"
-                      mask="h:mm A"
-                      format24h
-                    />
-                  </q-popup-proxy>
-                </q-icon>
-              </template>
-            </q-input>
+            />
 
             <div class="row justify-end q-gutter-sm">
               <q-btn
@@ -500,6 +457,8 @@ import { useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
 import type { Leg, Race } from '../types';
+import CompletionDateInput from '../components/CompletionDateInput.vue';
+import CompletionTimeInput from '../components/CompletionTimeInput.vue';
 
 const route = useRoute();
 const $q = useQuasar();
@@ -757,114 +716,7 @@ onMounted(() => {
   }
 });
 
-// Date and time validation and formatting
-function isValidDate(dateStr: string): boolean {
-  if (!dateStr) return false;
-  
-  // Parse M/D/YYYY format
-  const parts = dateStr.split('/');
-  if (parts.length !== 3) return false;
-  
-  const monthStr = parts[0];
-  const dayStr = parts[1];
-  const yearStr = parts[2];
-  
-  if (!monthStr || !dayStr || !yearStr) return false;
-  
-  const month = parseInt(monthStr);
-  const day = parseInt(dayStr);
-  const year = parseInt(yearStr);
-  
-  if (isNaN(month) || isNaN(day) || isNaN(year)) return false;
-  if (month < 1 || month > 12) return false;
-  if (day < 1 || day > 31) return false;
-  if (year < 1900 || year > 2100) return false;
-  
-  // Check if date is valid (e.g., Feb 30 doesn't exist)
-  const date = new Date(year, month - 1, day);
-  return date.getMonth() === month - 1 && date.getDate() === day && date.getFullYear() === year;
-}
 
-function isValidTime(timeStr: string): boolean {
-  if (!timeStr) return false;
-  
-  // Parse h:mm AM/PM format
-  const parts = timeStr.split(' ');
-  if (parts.length !== 2) return false;
-  
-  const timePart = parts[0];
-  const period = parts[1];
-  if (!timePart || !period) return false;
-  
-  const timeComponents = timePart.split(':');
-  if (timeComponents.length !== 2) return false;
-  
-  const hoursStr = timeComponents[0];
-  const minutesStr = timeComponents[1];
-  if (!hoursStr || !minutesStr) return false;
-  
-  const hour = parseInt(hoursStr);
-  const minute = parseInt(minutesStr);
-  
-  if (isNaN(hour) || isNaN(minute)) return false;
-  if (hour < 1 || hour > 12) return false;
-  if (minute < 0 || minute > 59) return false;
-  
-  return period === 'AM' || period === 'PM';
-}
-
-function formatDateInput() {
-  if (!completionTimeForm.value.date) return;
-  
-  // Try to parse and reformat the date
-  const parts = completionTimeForm.value.date.split('/');
-  if (parts.length === 3) {
-    const monthStr = parts[0];
-    const dayStr = parts[1];
-    const yearStr = parts[2];
-    
-    if (monthStr && dayStr && yearStr) {
-      const month = parseInt(monthStr);
-      const day = parseInt(dayStr);
-      const year = parseInt(yearStr);
-      
-      if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
-        // Ensure proper formatting
-        completionTimeForm.value.date = `${month}/${day}/${year}`;
-      }
-    }
-  }
-}
-
-function formatTimeInput() {
-  if (!completionTimeForm.value.time) return;
-  
-  // Try to parse and reformat the time
-  const parts = completionTimeForm.value.time.split(' ');
-  if (parts.length === 2) {
-    const timePart = parts[0];
-    const period = parts[1];
-    
-    if (timePart && period) {
-      const timeComponents = timePart.split(':');
-      
-      if (timeComponents.length === 2) {
-        const hourStr = timeComponents[0];
-        const minuteStr = timeComponents[1];
-        
-        if (hourStr && minuteStr) {
-          const hour = parseInt(hourStr);
-          const minute = parseInt(minuteStr);
-          
-          if (!isNaN(hour) && !isNaN(minute)) {
-            // Ensure proper formatting
-            completionTimeForm.value.time = `${hour}:${minute.toString().padStart(2, '0')} ${period.toUpperCase()}`;
-          }
-        }
-      }
-    }
-  }
-}
 
 // Completion time management
 function recordCompletionTime(leg: Leg) {
@@ -909,20 +761,10 @@ function confirmRemoveCompletionTime(leg: Leg) {
 
 function handleSaveCompletionTime() {
   if (editingCompletionTime.value && completionTimeForm.value.date && completionTimeForm.value.time) {
-    // Validate inputs first
-    if (!isValidDate(completionTimeForm.value.date) || !isValidTime(completionTimeForm.value.time)) {
-      $q.notify({
-        message: 'Please enter valid date and time formats',
-        color: 'negative',
-        icon: 'error',
-        position: 'top-right',
-        timeout: 3000,
-      });
-      return;
-    }
-    
     // Parse the M/D/YYYY date format
     const dateParts = completionTimeForm.value.date.split('/');
+    if (dateParts.length !== 3) return;
+    
     const monthStr = dateParts[0];
     const dayStr = dateParts[1];
     const yearStr = dateParts[2];
@@ -933,15 +775,21 @@ function handleSaveCompletionTime() {
     const day = parseInt(dayStr);
     const year = parseInt(yearStr);
     
+    if (isNaN(month) || isNaN(day) || isNaN(year)) return;
+    
     // Parse the h:mm AM/PM time format
     const timeString = completionTimeForm.value.time;
     const parts = timeString.split(' ');
+    if (parts.length !== 2) return;
+    
     const timePart = parts[0];
     const period = parts[1];
     
     if (!timePart || !period) return;
     
     const timeComponents = timePart.split(':');
+    if (timeComponents.length !== 2) return;
+    
     const hoursStr = timeComponents[0];
     const minutesStr = timeComponents[1];
     
@@ -949,6 +797,8 @@ function handleSaveCompletionTime() {
     
     const hours = parseInt(hoursStr);
     const minutes = parseInt(minutesStr);
+    
+    if (isNaN(hours) || isNaN(minutes)) return;
     
     let hour = hours;
     if (period === 'PM' && hour !== 12) {

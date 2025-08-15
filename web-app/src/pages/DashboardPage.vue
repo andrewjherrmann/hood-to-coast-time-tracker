@@ -216,54 +216,21 @@
                 />
               </div>
               
-              <!-- DateTime Picker -->
-              <div class="q-mb-md">
-                <div class="row q-gutter-md">
-                  <div class="col-12 col-md-6">
-                    <q-input
-                      v-model="completionDate"
-                      label="Completion Date"
-                      outlined
-                      dense
-                      class="full-width"
-                      readonly
-                    >
-                      <template v-slot:append>
-                        <q-icon name="event" class="cursor-pointer">
-                          <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                            <q-date
-                              v-model="completionDate"
-                              mask="YYYY-MM-DD"
-                            />
-                          </q-popup-proxy>
-                        </q-icon>
-                      </template>
-                    </q-input>
-                  </div>
-                  <div class="col-12 col-md-6">
-                    <q-input
-                      v-model="completionTime"
-                      label="Completion Time"
-                      outlined
-                      dense
-                      class="full-width"
-                      readonly
-                    >
-                      <template v-slot:append>
-                        <q-icon name="access_time" class="cursor-pointer">
-                          <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                            <q-time
-                              v-model="completionTime"
-                              mask="hh:mm A"
-                              format24h
-                            />
-                          </q-popup-proxy>
-                        </q-icon>
-                      </template>
-                    </q-input>
-                  </div>
-                </div>
-              </div>
+                             <!-- DateTime Picker -->
+               <div class="q-mb-md">
+                 <div class="row q-gutter-md">
+                   <div class="col">
+                     <CompletionDateInput
+                       v-model="completionDate"
+                     />
+                   </div>
+                   <div class="col">
+                     <CompletionTimeInput
+                       v-model="completionTime"
+                     />
+                   </div>
+                 </div>
+               </div>
               
               <div class="q-mt-sm">
                 <q-btn
@@ -516,6 +483,8 @@ import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
 import type { Race, Leg } from '../types';
+import CompletionDateInput from '../components/CompletionDateInput.vue';
+import CompletionTimeInput from '../components/CompletionTimeInput.vue';
 
 const router = useRouter();
 const store = useHoodToCoastStore();
@@ -673,18 +642,36 @@ function recordTime() {
 
 function recordCompletionTime() {
   if (currentLeg.value && completionDate.value && completionTime.value && currentTeam.value) {
-    // Parse the AM/PM time format and combine with date
+    // Parse the M/D/YYYY date format
+    const dateParts = completionDate.value.split('/');
+    if (dateParts.length !== 3) return;
+    
+    const monthStr = dateParts[0];
+    const dayStr = dateParts[1];
+    const yearStr = dateParts[2];
+    
+    if (!monthStr || !dayStr || !yearStr) return;
+    
+    const month = parseInt(monthStr);
+    const day = parseInt(dayStr);
+    const year = parseInt(yearStr);
+    
+    if (isNaN(month) || isNaN(day) || isNaN(year)) return;
+    
+    // Parse the AM/PM time format
     const timeString = completionTime.value; // e.g., "2:30 PM"
     const parts = timeString.split(' ');
     if (parts.length !== 2) return;
     
-    const [timePart, period] = parts;
+    const timePart = parts[0];
+    const period = parts[1];
     if (!timePart || !period) return;
     
     const timeComponents = timePart.split(':');
     if (timeComponents.length !== 2) return;
     
-    const [hours, minutes] = timeComponents;
+    const hours = timeComponents[0];
+    const minutes = timeComponents[1];
     if (!hours || !minutes) return;
     
     let hour = parseInt(hours);
@@ -694,7 +681,9 @@ function recordCompletionTime() {
       hour = 0;
     }
     
-    const dateTimeString = `${completionDate.value}T${hour.toString().padStart(2, '0')}:${minutes}:00`;
+    // Create date in YYYY-MM-DD format for Date constructor
+    const formattedDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    const dateTimeString = `${formattedDate}T${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
     const completionDateTime = new Date(dateTimeString);
     
     store.recordLegCompletionTime(currentLeg.value.id, completionDateTime);
@@ -720,12 +709,18 @@ function recordCompletionTime() {
 
 function setCurrentTime() {
   const now = new Date();
-  completionDate.value = now.toISOString().slice(0, 10); // Format as YYYY-MM-DD
+  // Format date as M/D/YYYY
+  const month = now.getMonth() + 1;
+  const day = now.getDate();
+  const year = now.getFullYear();
+  completionDate.value = `${month}/${day}/${year}`;
+  
+  // Format time as h:mm AM/PM
   completionTime.value = now.toLocaleTimeString('en-US', { 
     hour: 'numeric', 
     minute: '2-digit',
     hour12: true 
-  }); // Format as h:mm AM/PM
+  });
 }
 
 function getPerformanceCardClass(difference: number): string {
