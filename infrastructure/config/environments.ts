@@ -1,28 +1,33 @@
 export interface EnvironmentConfig {
-  domainName: string;
-  subdomain: string;
+  domainName?: string;
+  subdomain?: string;
   region: string;
   environment: string;
   teamName: string;
   description: string;
+  useCustomDomain: boolean;
+  mockMode: boolean;
+  generateEnvFile: boolean;
 }
 
 export const environments: Record<string, EnvironmentConfig> = {
   development: {
-    domainName: 'example.com',
-    subdomain: 'dev',
     region: 'us-east-1',
     environment: 'development',
     teamName: 'DevelopmentTeam',
-    description: 'Hood to Coast Time Tracker - Development Environment'
+    description: 'Hood to Coast Time Tracker - Development Environment',
+    useCustomDomain: false,
+    mockMode: true,
+    generateEnvFile: true
   },
   production: {
-    domainName: 'example.com',
-    subdomain: 'app',
-    region: 'us-west-2',
+    region: 'us-east-1',
     environment: 'production',
     teamName: 'ProductionTeam',
-    description: 'Hood to Coast Time Tracker - Production Environment'
+    description: 'Hood to Coast Time Tracker - Production Environment',
+    useCustomDomain: false,
+    mockMode: false,
+    generateEnvFile: true
   }
 };
 

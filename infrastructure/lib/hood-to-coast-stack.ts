@@ -1,8 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as apigateway from 'aws-cdk-lib/aws-apigateway';
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
@@ -10,306 +7,186 @@ import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as logs from 'aws-cdk-lib/aws-logs';
-import * as cognito from 'aws-cdk-lib/aws-cognito';
+
 
 export interface HoodToCoastStackProps extends cdk.StackProps {
-  domainName: string;
-  subdomain: string;
+  domainName?: string;
+  subdomain?: string;
+  region: string;
   environment: string;
+  useCustomDomain: boolean;
+  mockMode: boolean;
+  generateEnvFile: boolean;
 }
 
 export class HoodToCoastStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: HoodToCoastStackProps) {
     super(scope, id, props);
 
-    const fullDomainName = `${props.subdomain}.${props.domainName}`;
-
-    // Cognito User Pool for authentication
-    const userPool = new cognito.UserPool(this, 'HoodToCoastUserPool', {
-      userPoolName: `${props.environment}-hood-to-coast-users`,
-      selfSignUpEnabled: true,
-      signInAliases: {
-        email: true,
-        username: true,
-      },
-      autoVerify: {
-        email: true,
-      },
-      standardAttributes: {
-        email: {
-          required: true,
-          mutable: true,
-        },
-        givenName: {
-          required: false,
-          mutable: true,
-        },
-        familyName: {
-          required: false,
-          mutable: true,
-        },
-      },
-      passwordPolicy: {
-        minLength: 8,
-        requireLowercase: true,
-        requireUppercase: true,
-        requireDigits: true,
-        requireSymbols: false,
-      },
-      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
-
-    const userPoolClient = new cognito.UserPoolClient(this, 'HoodToCoastUserPoolClient', {
-      userPool,
-      generateSecret: false,
-      authFlows: {
-        adminUserPassword: true,
-        userPassword: true,
-        userSrp: true,
-      },
-      oAuth: {
-        flows: {
-          implicitCodeGrant: true,
-        },
-        callbackUrls: [`https://${fullDomainName}/auth/callback`],
-        logoutUrls: [`https://${fullDomainName}/auth/logout`],
-      },
-    });
-
-    // DynamoDB Tables
-    const teamsTable = new dynamodb.Table(this, 'TeamsTable', {
-      tableName: `${props.environment}-teams`,
-      partitionKey: { name: 'teamId', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      pointInTimeRecovery: true,
-    });
-
-    const legsTable = new dynamodb.Table(this, 'LegsTable', {
-      tableName: `${props.environment}-legs`,
-      partitionKey: { name: 'teamId', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'legNumber', type: dynamodb.AttributeType.NUMBER },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      pointInTimeRecovery: true,
-    });
-
-    const timesTable = new dynamodb.Table(this, 'TimesTable', {
-      tableName: `${props.environment}-times`,
-      partitionKey: { name: 'teamId', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'timestamp', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      pointInTimeRecovery: true,
-    });
-
-    const yearsTable = new dynamodb.Table(this, 'YearsTable', {
-      tableName: `${props.environment}-years`,
-      partitionKey: { name: 'year', type: dynamodb.AttributeType.NUMBER },
-      sortKey: { name: 'teamId', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      pointInTimeRecovery: true,
-    });
-
-    // Lambda Functions
-    const commonLambdaProps: lambda.FunctionProps = {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'index.handler',
-      environment: {
-        TEAMS_TABLE: teamsTable.tableName,
-        LEGS_TABLE: legsTable.tableName,
-        TIMES_TABLE: timesTable.tableName,
-        YEARS_TABLE: yearsTable.tableName,
-        USER_POOL_ID: userPool.userPoolId,
-        USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
-        REGION: this.region,
-      },
-      logRetention: logs.RetentionDays.ONE_WEEK,
-    };
-
-    const authLambda = new lambda.Function(this, 'AuthLambda', {
-      ...commonLambdaProps,
-      functionName: `${props.environment}-auth-lambda`,
-      code: lambda.Code.fromAsset('lambda/auth'),
-      timeout: cdk.Duration.seconds(30),
-    });
-
-    const teamsLambda = new lambda.Function(this, 'TeamsLambda', {
-      ...commonLambdaProps,
-      functionName: `${props.environment}-teams-lambda`,
-      code: lambda.Code.fromAsset('lambda/teams'),
-      timeout: cdk.Duration.seconds(30),
-    });
-
-    const legsLambda = new lambda.Function(this, 'LegsLambda', {
-      ...commonLambdaProps,
-      functionName: `${props.environment}-legs-lambda`,
-      code: lambda.Code.fromAsset('lambda/legs'),
-      timeout: cdk.Duration.seconds(30),
-    });
-
-    const timesLambda = new lambda.Function(this, 'TimesLambda', {
-      ...commonLambdaProps,
-      functionName: `${props.environment}-times-lambda`,
-      code: lambda.Code.fromAsset('lambda/times'),
-      timeout: cdk.Duration.seconds(30),
-    });
-
-    const yearsLambda = new lambda.Function(this, 'YearsLambda', {
-      ...commonLambdaProps,
-      functionName: `${props.environment}-years-lambda`,
-      code: lambda.Code.fromAsset('lambda/years'),
-      timeout: cdk.Duration.seconds(30),
-    });
-
-    // Grant DynamoDB permissions to Lambda functions
-    teamsTable.grantReadWriteData(teamsLambda);
-    legsTable.grantReadWriteData(legsLambda);
-    timesTable.grantReadWriteData(timesLambda);
-    yearsTable.grantReadWriteData(yearsLambda);
-
-    // API Gateway
-    const api = new apigateway.RestApi(this, 'HoodToCoastApi', {
-      restApiName: `${props.environment}-hood-to-coast-api`,
-      description: 'Hood to Coast Time Tracker API',
-      defaultCorsPreflightOptions: {
-        allowOrigins: [`https://${fullDomainName}`],
-        allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowHeaders: ['Content-Type', 'Authorization', 'X-Amz-Date', 'X-Api-Key', 'X-Amz-Security-Token'],
-        allowCredentials: true,
-      },
-    });
-
-    // Authorizer
-    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'HoodToCoastAuthorizer', {
-      cognitoUserPools: [userPool],
-    });
-
-    // API Resources and Methods
-    const authResource = api.root.addResource('auth');
-    authResource.addMethod('POST', new apigateway.LambdaIntegration(authLambda));
-
-    const teamsResource = api.root.addResource('teams');
-    teamsResource.addMethod('GET', new apigateway.LambdaIntegration(teamsLambda));
-    teamsResource.addMethod('POST', new apigateway.LambdaIntegration(teamsLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-    teamsResource.addMethod('PUT', new apigateway.LambdaIntegration(teamsLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-
-    const legsResource = api.root.addResource('legs');
-    legsResource.addMethod('GET', new apigateway.LambdaIntegration(legsLambda));
-    legsResource.addMethod('POST', new apigateway.LambdaIntegration(legsLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-    legsResource.addMethod('PUT', new apigateway.LambdaIntegration(legsLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-
-    const timesResource = api.root.addResource('times');
-    timesResource.addMethod('GET', new apigateway.LambdaIntegration(timesLambda));
-    timesResource.addMethod('POST', new apigateway.LambdaIntegration(timesLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-    timesResource.addMethod('PUT', new apigateway.LambdaIntegration(timesLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
-
-    const yearsResource = api.root.addResource('years');
-    yearsResource.addMethod('GET', new apigateway.LambdaIntegration(yearsLambda));
-    yearsResource.addMethod('POST', new apigateway.LambdaIntegration(yearsLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    const fullDomainName = props.useCustomDomain && props.domainName && props.subdomain 
+      ? `${props.subdomain}.${props.domainName}` 
+      : undefined;
 
     // S3 Bucket for hosting the frontend
     const websiteBucket = new s3.Bucket(this, 'WebsiteBucket', {
-      bucketName: `${props.environment}-${props.subdomain}-${props.domainName.replace(/\./g, '-')}`,
-      websiteIndexDocument: 'index.html',
-      websiteErrorDocument: 'index.html',
+      bucketName: props.useCustomDomain && props.domainName && props.subdomain
+        ? `${props.environment}-${props.subdomain}-${props.domainName.replace(/\./g, '-')}`
+        : `${props.environment}-hood-to-coast-website-${this.account}`,
+      // Remove website configuration - we want S3 origin, not website endpoint
+      // websiteIndexDocument: 'index.html',
+      // websiteErrorDocument: 'index.html',
       publicReadAccess: false,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       versioned: true,
     });
 
-    // CloudFront Distribution
-    const certificate = new acm.Certificate(this, 'Certificate', {
-      domainName: fullDomainName,
-      validation: acm.CertificateValidation.fromDns(
-        route53.HostedZone.fromLookup(this, 'HostedZone', {
-          domainName: props.domainName,
-        })
-      ),
+    // Create bucket policy to allow CloudFront access
+    const bucketPolicy = new s3.BucketPolicy(this, 'WebsiteBucketPolicy', {
+      bucket: websiteBucket,
     });
 
-    const distribution = new cloudfront.Distribution(this, 'Distribution', {
-      defaultBehavior: {
-        origin: new origins.S3Origin(websiteBucket),
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
-        cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
-        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-        originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
-      },
-      domainNames: [fullDomainName],
-      certificate,
-      errorResponses: [
-        {
-          httpStatus: 404,
-          responseHttpStatus: 200,
-          responsePagePath: '/index.html',
+    // Grant CloudFront access to the bucket
+    bucketPolicy.document.addStatements(
+      new iam.PolicyStatement({
+        sid: 'AllowCloudFrontAccess',
+        effect: iam.Effect.ALLOW,
+        principals: [new iam.ServicePrincipal('cloudfront.amazonaws.com')],
+        actions: ['s3:GetObject'],
+        resources: [websiteBucket.arnForObjects('*')],
+        conditions: {
+          StringEquals: {
+            'AWS:SourceArn': `arn:aws:cloudfront::${this.account}:distribution/*`,
+          },
         },
-      ],
-    });
+      })
+    );
 
-    // Route53 DNS
-    const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
-      domainName: props.domainName,
-    });
+    // CloudFront Distribution
+    let distribution: cloudfront.Distribution;
+    
+    if (props.useCustomDomain && fullDomainName) {
+      // Custom domain setup - lookup hosted zone once
+      const hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
+        domainName: props.domainName!,
+      });
 
-    new route53.ARecord(this, 'AliasRecord', {
-      zone: hostedZone,
-      recordName: props.subdomain,
-      target: route53.RecordTarget.fromAlias(
-        new targets.CloudFrontTarget(distribution)
-      ),
-    });
+      const certificate = new acm.Certificate(this, 'Certificate', {
+        domainName: fullDomainName,
+        validation: acm.CertificateValidation.fromDns(hostedZone),
+      });
+
+      distribution = new cloudfront.Distribution(this, 'Distribution', {
+        defaultBehavior: {
+          origin: new origins.S3Origin(websiteBucket),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+          cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
+          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+          originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+        },
+        domainNames: [fullDomainName],
+        certificate,
+        errorResponses: [
+          {
+            httpStatus: 404,
+            responseHttpStatus: 200,
+            responsePagePath: '/index.html',
+          },
+        ],
+      });
+
+      // Route53 DNS
+      new route53.ARecord(this, 'AliasRecord', {
+        zone: hostedZone,
+        recordName: props.subdomain!,
+        target: route53.RecordTarget.fromAlias(
+          new targets.CloudFrontTarget(distribution)
+        ),
+      });
+    } else {
+      // Simple CloudFront setup without custom domain
+      distribution = new cloudfront.Distribution(this, 'Distribution', {
+        defaultBehavior: {
+          origin: new origins.S3Origin(websiteBucket),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+          cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
+          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+          originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+        },
+        errorResponses: [
+          {
+            httpStatus: 404,
+            responseHttpStatus: 200,
+            responsePagePath: '/index.html',
+          },
+        ],
+      });
+    }
+
+    // Generate environment file for web-app if requested
+    if (props.generateEnvFile) {
+      this.generateEnvironmentFile(props, distribution.distributionDomainName);
+    }
 
     // Outputs
-    new cdk.CfnOutput(this, 'ApiUrl', {
-      value: api.url,
-      description: 'API Gateway URL',
-    });
-
-    new cdk.CfnOutput(this, 'UserPoolId', {
-      value: userPool.userPoolId,
-      description: 'Cognito User Pool ID',
-    });
-
-    new cdk.CfnOutput(this, 'UserPoolClientId', {
-      value: userPoolClient.userPoolClientId,
-      description: 'Cognito User Pool Client ID',
-    });
-
     new cdk.CfnOutput(this, 'WebsiteUrl', {
-      value: `https://${fullDomainName}`,
+      value: props.useCustomDomain && fullDomainName 
+        ? `https://${fullDomainName}` 
+        : `https://${distribution.distributionDomainName}`,
       description: 'Website URL',
     });
 
     new cdk.CfnOutput(this, 'DistributionId', {
       value: distribution.distributionId,
       description: 'CloudFront Distribution ID',
+    });
+
+    new cdk.CfnOutput(this, 'S3BucketName', {
+      value: websiteBucket.bucketName,
+      description: 'S3 Bucket Name for Website',
+    });
+
+    // Mock mode specific outputs
+    if (props.mockMode) {
+      new cdk.CfnOutput(this, 'MockModeInfo', {
+        value: 'Application is running in MOCK MODE - all data is local mock data',
+        description: 'Mock Mode Information',
+      });
+    }
+  }
+
+  private generateEnvironmentFile(
+    props: HoodToCoastStackProps, 
+    distributionDomain: string
+  ) {
+    const envContent = `# Environment configuration for Hood to Coast Time Tracker
+# Generated by CDK deployment - DO NOT EDIT MANUALLY
+
+# Mock Mode Configuration
+VITE_MOCK_MODE=${props.mockMode}
+
+# AWS Configuration
+VITE_AWS_REGION=${props.region}
+VITE_ENVIRONMENT=${props.environment}
+
+# Domain Configuration
+VITE_USE_CUSTOM_DOMAIN=${props.useCustomDomain}
+${props.domainName ? `VITE_DOMAIN_NAME=${props.domainName}` : ''}
+${props.subdomain ? `VITE_SUBDOMAIN=${props.subdomain}` : ''}
+
+# Website URL
+VITE_WEBSITE_URL=https://${distributionDomain}
+
+# Mock Mode Note
+${props.mockMode ? '# Running in MOCK MODE - all data is local mock data' : '# Running in PRODUCTION MODE - requires API endpoints'}
+`;
+
+    // Output the environment file content for manual deployment
+    new cdk.CfnOutput(this, 'EnvironmentFileContent', {
+      value: envContent,
+      description: 'Environment file content to copy to web-app/.env.production',
     });
   }
 }

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { mockRaces } from './mock-data';
+import { useMockData } from '../config/environment';
 import type { 
   Runner, 
   Leg, 
@@ -42,7 +43,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   // State
   const races = ref<Race[]>([]);
   const currentRaceId = ref<string | null>(null);
-  const isMockMode = ref(true);
+  const isMockMode = ref(useMockData);
   const isLoading = ref(false);
   const isAuthenticated = ref(false);
   const currentUser = ref<User | null>(null);

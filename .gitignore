@@ -24,6 +24,9 @@ web-app/src-electron/dist-electron
 infrastructure/config/local.ts
 web-app/.env
 
+# Keep template files
+!infrastructure/config/*.template.ts
+
 # IDE
 .vscode/
 .idea/
@@ -79,3 +82,5 @@ cdk.out/
 
 # Keep yarn.lock (important for reproducible builds)
 !yarn.lock
+infrastructure/config/local.js
+infrastructure/cdk.context.json

@@ -3,16 +3,18 @@ import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { HoodToCoastStack } from '../lib/hood-to-coast-stack';
 import { getEnvironmentConfig } from '../config/environments';
+import { getLocalEnvironmentConfig } from '../config/local';
 
 const app = new cdk.App();
 
 // Get environment from command line argument or default to development
 const targetEnvironment = process.argv[2] || 'development';
-const config = getEnvironmentConfig(targetEnvironment);
+const baseConfig = getEnvironmentConfig(targetEnvironment);
+const config = getLocalEnvironmentConfig(targetEnvironment);
 
 console.log(`Deploying to environment: ${targetEnvironment}`);
-console.log(`Domain: ${config.subdomain}.${config.domainName}`);
 console.log(`Region: ${config.region}`);
+console.log(`Use Custom Domain: ${config.useCustomDomain}`);
 
 new HoodToCoastStack(app, 'HoodToCoastStack', {
   env: { 
@@ -21,7 +23,11 @@ new HoodToCoastStack(app, 'HoodToCoastStack', {
   },
   domainName: config.domainName,
   subdomain: config.subdomain,
+  region: config.region,
   environment: config.environment,
+  useCustomDomain: config.useCustomDomain,
+  mockMode: config.mockMode,
+  generateEnvFile: config.generateEnvFile,
   description: config.description
 });
 
