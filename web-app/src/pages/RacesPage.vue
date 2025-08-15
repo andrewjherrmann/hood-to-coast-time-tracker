@@ -61,7 +61,7 @@
             </div>
             <q-chip
               v-if="race.isActive"
-              color="green"
+              color="positive"
               text-color="white"
               size="sm"
               icon="check_circle"
@@ -92,14 +92,14 @@
             />
             <q-btn
               size="sm"
-              color="orange"
+              color="warning"
               icon="edit"
               label="Edit"
               @click="editRace(race)"
             />
             <q-btn
               size="sm"
-              color="red"
+              color="negative"
               icon="delete"
               label="Delete"
               @click="confirmDeleteRace(race)"

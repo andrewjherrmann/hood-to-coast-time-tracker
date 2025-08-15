@@ -302,17 +302,17 @@
             <div class="row q-gutter-md">
               <div class="col-12 col-md-6">
                 <div class="text-subtitle2 q-mb-sm">Original Estimated Finish Time</div>
-                                 <div class="text-h5 text-blue q-mb-sm">
-                   {{ store.originalEstimatedFinishTime ? formatFinishTime(store.originalEstimatedFinishTime) : 'Not available' }}
-                 </div>
-                 <div class="text-caption">Based on planned paces</div>
-               </div>
-               <div class="col-12 col-md-6">
-                 <div class="text-subtitle2 q-mb-sm">Actual Finish Time</div>
-                 <div class="text-h4 text-green q-mb-sm">
-                   {{ store.actualFinishTime ? formatFinishTime(store.actualFinishTime) : 'Not available' }}
-                 </div>
-                 <div class="text-caption">When race was completed</div>
+                                                   <div class="text-h5 text-info q-mb-sm">
+                    {{ store.originalEstimatedFinishTime ? formatFinishTime(store.originalEstimatedFinishTime) : 'Not available' }}
+                  </div>
+                  <div class="text-caption">Based on planned paces</div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <div class="text-subtitle2 q-mb-sm">Actual Finish Time</div>
+                  <div class="text-h4 text-positive q-mb-sm">
+                    {{ store.actualFinishTime ? formatFinishTime(store.actualFinishTime) : 'Not available' }}
+                  </div>
+                  <div class="text-caption">When race was completed</div>
                </div>
             </div>
           </div>
@@ -322,17 +322,17 @@
             <div class="row q-gutter-md">
               <div class="col-12 col-md-6">
                 <div class="text-subtitle2 q-mb-sm">Original Estimated Finish Time</div>
-                                 <div class="text-h5 text-blue q-mb-sm">
-                   {{ store.originalEstimatedFinishTime ? formatFinishTime(store.originalEstimatedFinishTime) : 'Not available' }}
-                 </div>
-                 <div class="text-caption">Based on planned paces</div>
-               </div>
-               <div class="col-12 col-md-6">
-                 <div class="text-subtitle2 q-mb-sm">Current Estimated Finish Time</div>
-                 <div class="text-h5 text-orange q-mb-sm">
-                   {{ store.currentEstimatedFinishTime ? formatFinishTime(store.currentEstimatedFinishTime) : 'Not available' }}
-                 </div>
-                 <div class="text-caption">Based on completed legs + estimated remaining</div>
+                                                   <div class="text-h5 text-info q-mb-sm">
+                    {{ store.originalEstimatedFinishTime ? formatFinishTime(store.originalEstimatedFinishTime) : 'Not available' }}
+                  </div>
+                  <div class="text-caption">Based on planned paces</div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <div class="text-subtitle2 q-mb-sm">Current Estimated Finish Time</div>
+                  <div class="text-h5 text-warning q-mb-sm">
+                    {{ store.currentEstimatedFinishTime ? formatFinishTime(store.currentEstimatedFinishTime) : 'Not available' }}
+                  </div>
+                  <div class="text-caption">Based on completed legs + estimated remaining</div>
                </div>
             </div>
           </div>
@@ -340,10 +340,10 @@
           <!-- For races not started -->
           <div v-else-if="store.originalEstimatedFinishTime" class="text-center">
             <div class="text-subtitle2 q-mb-sm">Original Estimated Finish Time</div>
-                         <div class="text-h4 text-blue q-mb-sm">
-               {{ store.originalEstimatedFinishTime ? formatFinishTime(store.originalEstimatedFinishTime) : 'Not available' }}
-             </div>
-             <div class="text-caption">Based on planned paces</div>
+                                    <div class="text-h4 text-info q-mb-sm">
+             {{ store.originalEstimatedFinishTime ? formatFinishTime(store.originalEstimatedFinishTime) : 'Not available' }}
+           </div>
+           <div class="text-caption">Based on planned paces</div>
           </div>
           
           <!-- Fallback -->
@@ -436,22 +436,22 @@
          <div class="q-mb-lg">
            <div class="text-subtitle2 q-mb-sm">Performance Distribution</div>
            <div class="row q-gutter-sm">
-             <div class="col-12 col-md-6">
-               <div class="text-caption q-mb-xs">Faster Legs (Green)</div>
-               <q-linear-progress
-                 :value="store.teamPerformanceMetrics.totalLegs > 0 ? store.teamPerformanceMetrics.fasterLegs / store.teamPerformanceMetrics.totalLegs : 0"
-                 color="green"
-                 size="lg"
-               />
-             </div>
-             <div class="col-12 col-md-6">
-               <div class="text-caption q-mb-xs">Slower Legs (Orange)</div>
-               <q-linear-progress
-                 :value="store.teamPerformanceMetrics.totalLegs > 0 ? store.teamPerformanceMetrics.slowerLegs / store.teamPerformanceMetrics.totalLegs : 0"
-                 color="orange"
-                 size="lg"
-               />
-             </div>
+                           <div class="col-12 col-md-6">
+                <div class="text-caption q-mb-xs">Faster Legs (Positive)</div>
+                <q-linear-progress
+                  :value="store.teamPerformanceMetrics.totalLegs > 0 ? store.teamPerformanceMetrics.fasterLegs / store.teamPerformanceMetrics.totalLegs : 0"
+                  color="positive"
+                  size="lg"
+                />
+              </div>
+              <div class="col-12 col-md-6">
+                <div class="text-caption q-mb-xs">Slower Legs (Warning)</div>
+                <q-linear-progress
+                  :value="store.teamPerformanceMetrics.totalLegs > 0 ? store.teamPerformanceMetrics.slowerLegs / store.teamPerformanceMetrics.totalLegs : 0"
+                  color="warning"
+                  size="lg"
+                />
+              </div>
            </div>
          </div>
       </q-card-section>
@@ -718,9 +718,9 @@ function setCurrentTime() {
 
 function getPerformanceCardClass(difference: number): string {
   if (difference > 0) {
-    return 'bg-orange-1 text-orange-8';
+    return 'bg-warning-1 text-warning-8';
   } else if (difference < 0) {
-    return 'bg-green-1 text-green-8';
+    return 'bg-positive-1 text-positive-8';
   }
   return '';
 }

@@ -53,7 +53,7 @@
           <q-item
             v-for="leg in sortedLegs"
             :key="leg.id"
-            :class="store.isLegCompleted(leg) ? 'bg-green-1' : 'bg-grey-1'"
+            :class="store.isLegCompleted(leg) ? 'bg-positive-1' : 'bg-grey-1'"
             class="leg-item q-mb-sm"
             draggable="true"
             @dragstart="onDragStart($event, leg)"
@@ -63,7 +63,7 @@
           >
             <q-item-section avatar>
               <q-avatar
-                :color="store.isLegCompleted(leg) ? 'green' : 'grey'"
+                :color="store.isLegCompleted(leg) ? 'positive' : 'grey'"
                 text-color="white"
                 size="md"
                 class="leg-number"
@@ -81,13 +81,13 @@
                   size="sm"
                 />
                 <q-chip
-                  color="blue"
+                  color="primary"
                   text-color="white"
                   :label="`${leg.distance} mi`"
                   size="sm"
                 />
                 <q-chip
-                  color="green"
+                  color="secondary"
                   text-color="white"
                   :label="`${store.getLegEstimatedTime(leg)} min`"
                   size="sm"
@@ -95,13 +95,13 @@
                 <q-chip
                   v-if="store.getLegEstimatedTimeByRunner(leg) && 
                          store.getLegEstimatedTimeByRunner(leg) !== store.getLegEstimatedTime(leg)"
-                  color="teal"
+                  color="accent"
                   text-color="white"
-                  :label="`${store.getLegEstimatedTimeByRunner(leg)} min (runner)`"
+                  :label="`${store.getLegEstimatedTime(leg)} min (runner)`"
                   size="sm"
                 />
                 <q-chip
-                  :color="store.isLegCompleted(leg) ? 'green' : 'grey'"
+                  :color="store.isLegCompleted(leg) ? 'positive' : 'grey'"
                   text-color="white"
                   :label="store.isLegCompleted(leg) ? 'Completed' : 'Pending'"
                   size="sm"

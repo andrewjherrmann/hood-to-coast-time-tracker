@@ -87,7 +87,7 @@
 
                 <div class="q-mt-md">
                   <q-chip
-                    color="blue"
+                    color="primary"
                     text-color="white"
                     :label="`${runner.estimatedPaceMinutes}:${runner.estimatedPaceSeconds.toString().padStart(2, '0')} / mile`"
                     size="sm"
@@ -104,7 +104,7 @@
                     <q-chip
                       v-for="leg in getAssignedLegs(runner.id)"
                       :key="leg.id"
-                      :color="store.isLegCompleted(leg) ? 'green' : 'blue'"
+                      :color="store.isLegCompleted(leg) ? 'positive' : 'primary'"
                       text-color="white"
                       :label="`Leg ${leg.order} (${leg.distance} mi)`"
                       size="xs"
@@ -140,18 +140,18 @@
                 </div>
                 <div class="row q-gutter-xs q-mt-sm">
                   <div class="col-6">
-                    <q-chip size="sm" color="green" text-color="white">
+                    <q-chip size="sm" color="positive" text-color="white">
                       {{ runner.fasterLegs }}
                     </q-chip>
                   </div>
                   <div class="col-6">
-                    <q-chip size="sm" color="orange" text-color="white">
+                    <q-chip size="sm" color="warning" text-color="white">
                       {{ runner.slowerLegs }}
                     </q-chip>
                   </div>
                 </div>
                 <div class="text-caption q-mt-xs">
-                  <span class="text-green">Faster</span> / <span class="text-orange">Slower</span> than estimated
+                  <span class="text-positive">Faster</span> / <span class="text-warning">Slower</span> than estimated
                 </div>
               </q-card-section>
             </q-card>
