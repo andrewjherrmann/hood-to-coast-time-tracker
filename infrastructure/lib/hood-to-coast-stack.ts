@@ -29,9 +29,7 @@ export class HoodToCoastStack extends cdk.Stack {
 
     // S3 Bucket for hosting the frontend
     const websiteBucket = new s3.Bucket(this, 'WebsiteBucket', {
-      bucketName: props.useCustomDomain && props.domainName && props.subdomain
-        ? `${props.environment}-${props.subdomain}-${props.domainName.replace(/\./g, '-')}`
-        : `${props.environment}-hood-to-coast-website-${this.account}`,
+      bucketName: `${props.environment}-hood-to-coast-website-${this.account}`,
       // Remove website configuration - we want S3 origin, not website endpoint
       // websiteIndexDocument: 'index.html',
       // websiteErrorDocument: 'index.html',
@@ -93,6 +91,11 @@ export class HoodToCoastStack extends cdk.Stack {
             responseHttpStatus: 200,
             responsePagePath: '/index.html',
           },
+          {
+            httpStatus: 403,
+            responseHttpStatus: 200,
+            responsePagePath: '/index.html',
+          },
         ],
       });
 
@@ -118,6 +121,11 @@ export class HoodToCoastStack extends cdk.Stack {
         errorResponses: [
           {
             httpStatus: 404,
+            responseHttpStatus: 200,
+            responsePagePath: '/index.html',
+          },
+          {
+            httpStatus: 403,
             responseHttpStatus: 200,
             responsePagePath: '/index.html',
           },
