@@ -89,7 +89,7 @@
                 <q-chip
                   v-for="user in availableUsers"
                   :key="user.email"
-                  color="blue"
+                  color="info"
                   text-color="white"
                   size="sm"
                 >
