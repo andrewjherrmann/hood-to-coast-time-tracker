@@ -88,6 +88,47 @@
       </q-card-section>
     </q-card>
 
+    <!-- Runner Performance Summary -->
+    <q-card v-if="store.runnerPerformanceMetrics.length > 0" class="q-mb-lg">
+      <q-card-section>
+        <div class="text-h6 q-mb-md">Runner Performance Summary</div>
+        <div class="row q-gutter-md">
+          <div 
+            v-for="runner in store.runnerPerformanceMetrics.filter(r => r.completedLegs > 0)" 
+            :key="runner.runnerId"
+            class="col-12 col-md-6 col-lg-4"
+          >
+            <q-card class="text-center" :class="getRunnerPerformanceCardClass(runner.averagePaceDifference)">
+              <q-card-section>
+                <div class="text-subtitle1 q-mb-sm">{{ runner.runnerName }}</div>
+                <div class="text-h6 q-mb-sm">
+                  {{ formatTimeDifference(runner.averagePaceDifference) }}
+                </div>
+                <div class="text-caption">
+                  Average per leg ({{ runner.completedLegs }} legs)
+                </div>
+                <div class="row q-gutter-xs q-mt-sm">
+                  <div class="col-6">
+                    <q-chip size="sm" color="green" text-color="white">
+                      {{ runner.fasterLegs }}
+                    </q-chip>
+                  </div>
+                  <div class="col-6">
+                    <q-chip size="sm" color="orange" text-color="white">
+                      {{ runner.slowerLegs }}
+                    </q-chip>
+                  </div>
+                </div>
+                <div class="text-caption q-mt-xs">
+                  <span class="text-green">Faster</span> / <span class="text-orange">Slower</span> than estimated
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+        </div>
+      </q-card-section>
+    </q-card>
+
     <!-- Add/Edit Runner Dialog -->
     <q-dialog v-model="showAddRunnerDialog" persistent>
       <q-card style="min-width: 500px">
@@ -275,6 +316,23 @@ function closeRunnerDialog() {
     estimatedPaceMinutes: 8,
     estimatedPaceSeconds: 0
   };
+}
+
+function getRunnerPerformanceCardClass(difference: number): string {
+  if (difference > 0) {
+    return 'bg-green-1 text-green-8';
+  } else if (difference < 0) {
+    return 'bg-orange-1 text-orange-8';
+  }
+  return '';
+}
+
+function formatTimeDifference(minutes: number): string {
+  const absMinutes = Math.abs(minutes);
+  const hours = Math.floor(absMinutes / 60);
+  const remainingMinutes = absMinutes % 60;
+  const sign = minutes < 0 ? '-' : '+';
+  return `${sign}${hours}h ${remainingMinutes}m`;
 }
 </script>
 

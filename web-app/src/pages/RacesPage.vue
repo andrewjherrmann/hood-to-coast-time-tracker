@@ -18,7 +18,7 @@
     <!-- Race Cards -->
     <div class="row q-gutter-md">
       <q-card
-        v-for="race in store.races"
+        v-for="race in sortedRaces"
         :key="race.id"
         class="race-card"
         :class="{ 'active-race': race.isActive }"
@@ -311,13 +311,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
 import type { Race } from '../types';
 import { useQuasar } from 'quasar';
 
 const store = useHoodToCoastStore();
 const $q = useQuasar();
+
+// Computed property for sorted races (newest first)
+const sortedRaces = computed(() => {
+  return [...store.races].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+});
 
 // Dialog states
 const showNewRaceDialog = ref(false);
@@ -352,12 +357,7 @@ const raceToDelete = ref<Race | null>(null);
 
 // Helper functions
 function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  return store.formatDateTime(new Date(date), false);
 }
 
 function createNewRace() {

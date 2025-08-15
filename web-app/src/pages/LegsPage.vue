@@ -96,12 +96,39 @@
                 <div class="text-caption">
                   <div>Runner: {{ getRunnerName(leg.runnerId) }}</div>
                   <div>Estimated Time: {{ store.getLegBestEstimatedTime(leg) }} min</div>
-                  <div>Actual Time: {{ store.getLegActualTime(leg) }} min</div>
+                  <div>Actual Duration: {{ store.getLegActualDuration(leg) }} min</div>
                   <div v-if="getLegPerformanceInfo(leg).hasComparison" 
                        :class="getLegPerformanceInfo(leg).isFaster ? 'text-positive' : 'text-negative'">
                     {{ getLegPerformanceInfo(leg).isFaster ? 'Faster' : 'Slower' }} by 
                     {{ getLegPerformanceInfo(leg).differenceMinutes }} min
                     ({{ getLegPerformanceInfo(leg).percentageDifference }}%)
+                  </div>
+                </div>
+              </div>
+
+              <!-- Time Information -->
+              <div class="q-mt-sm">
+                <q-separator class="q-my-sm" />
+                <div class="text-caption">
+                  <div class="row q-gutter-sm">
+                    <div class="col-6">
+                      <strong>Start Time:</strong><br>
+                      <span class="text-grey-7">
+                        {{ formatTime(store.getLegStartTime(leg)) }}
+                      </span>
+                    </div>
+                    <div class="col-6">
+                      <strong>End Time:</strong><br>
+                      <span class="text-grey-7">
+                        {{ formatTime(store.getLegEndTime(leg)) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="q-mt-xs">
+                    <strong>Duration:</strong> 
+                    <span class="text-grey-7">
+                      {{ store.getLegDuration(leg) }} min
+                    </span>
                   </div>
                 </div>
               </div>
@@ -304,6 +331,11 @@ const runnerOptions = computed(() => {
 });
 
 // Methods
+function formatTime(date: Date | null): string {
+  if (!date) return 'Not available';
+  return store.formatDateTime(date, true);
+}
+
 function getDifficultyColor(difficulty: string): string {
   switch (difficulty) {
     case 'Easy': return 'green';

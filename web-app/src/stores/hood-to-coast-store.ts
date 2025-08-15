@@ -61,32 +61,34 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
 
   const activeRace = computed(() => races.value.find(race => race.isActive) || null);
 
-  // Find the next upcoming race (closest future date)
-  const nextUpcomingRace = computed(() => {
-    const now = new Date();
-    const futureRaces = races.value.filter(race => race.date > now);
-    if (futureRaces.length === 0) return null;
-    
-    return futureRaces.reduce((closest, race) => {
-      return race.date < closest.date ? race : closest;
-    });
-  });
+          // Find the most recent race (latest date, whether past or future)
+        const nextUpcomingRace = computed(() => {
+          if (races.value.length === 0) return null;
+          
+          // Sort races by date descending and return the first one (most recent)
+          const sortedRaces = [...races.value].sort((a, b) => 
+            new Date(b.date).getTime() - new Date(a.date).getTime()
+          );
+          
+          return sortedRaces[0];
+        });
 
 
-  // Initialize with mock data
-  if (isMockMode.value) {
-    races.value = [...mockRaces];
-    
-    // Automatically set the next upcoming race as active
-    const upcoming = nextUpcomingRace.value;
-    if (upcoming) {
-      upcoming.isActive = true;
-      currentRaceId.value = upcoming.id;
-    } else {
-      // Fallback to first race if no upcoming races
-      currentRaceId.value = races.value[0]?.id || null;
-    }
-  }
+          // Initialize with mock data
+        if (isMockMode.value) {
+          races.value = [...mockRaces];
+          
+          // Automatically set the most recent race as active
+          const mostRecent = nextUpcomingRace.value;
+          
+          if (mostRecent) {
+            mostRecent.isActive = true;
+            currentRaceId.value = mostRecent.id;
+          } else {
+            // Fallback to first race if no races exist
+            currentRaceId.value = races.value[0]?.id || null;
+          }
+        }
 
   // Initialize authentication state from localStorage
   const savedUser = loadAuthSession();
@@ -112,7 +114,8 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   // Computed
   const totalDistance = computed(() => {
     if (!currentTeam.value) return 0;
-    return currentTeam.value.legs.reduce((total, leg) => total + leg.distance, 0);
+    const total = currentTeam.value.legs.reduce((total, leg) => total + leg.distance, 0);
+    return Math.round(total * 100) / 100; // Round to 2 decimal places
   });
 
   const completedLegs = computed(() => {
@@ -176,12 +179,101 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     return actualTimeMinutes;
   }
 
+  // Helper function to get leg start time (estimated or actual from previous leg)
+  function getLegStartTime(leg: Leg): Date | null {
+    if (!currentTeam.value) return null;
+    
+    const sortedLegs = [...currentTeam.value.legs].sort((a, b) => a.order - b.order);
+    const legIndex = sortedLegs.findIndex(l => l.id === leg.id);
+    
+    if (legIndex === 0) {
+      // First leg starts at race start time
+      return new Date(currentTeam.value.startTime);
+    }
+    
+    const previousLeg = sortedLegs[legIndex - 1];
+    if (!previousLeg) return null;
+    
+    if (previousLeg.timeEntry) {
+      // Use actual end time of previous leg
+      return new Date(previousLeg.timeEntry.timestamp);
+    } else {
+      // Calculate estimated start time based on previous leg's estimated end time
+      const estimatedEndTime = new Date(currentTeam.value.startTime);
+      for (let i = 0; i < legIndex; i++) {
+        const currentLeg = sortedLegs[i];
+        if (currentLeg) {
+          const estimatedMinutes = getLegBestEstimatedTime(currentLeg);
+          estimatedEndTime.setMinutes(estimatedEndTime.getMinutes() + estimatedMinutes);
+        }
+      }
+      return estimatedEndTime;
+    }
+  }
+
+  // Helper function to get leg end time (actual if completed, estimated if not)
+  function getLegEndTime(leg: Leg): Date | null {
+    if (!currentTeam.value) return null;
+    
+    if (leg.timeEntry) {
+      // Use actual end time if leg is completed
+      return new Date(leg.timeEntry.timestamp);
+    } else {
+      // Calculate estimated end time
+      const startTime = getLegStartTime(leg);
+      if (!startTime) return null;
+      
+      const estimatedMinutes = getLegBestEstimatedTime(leg);
+      const estimatedEndTime = new Date(startTime);
+      estimatedEndTime.setMinutes(estimatedEndTime.getMinutes() + estimatedMinutes);
+      return estimatedEndTime;
+    }
+  }
+
+  // Helper function to get leg duration (time between start and end)
+  function getLegDuration(leg: Leg): number | null {
+    const startTime = getLegStartTime(leg);
+    const endTime = getLegEndTime(leg);
+    
+    if (!startTime || !endTime) return null;
+    
+    return Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
+  }
+
+  // Helper function to get leg actual duration (for completed legs)
+  function getLegActualDuration(leg: Leg): number | null {
+    if (!leg.timeEntry) return null;
+
+    const startTime = getLegStartTime(leg);
+    if (!startTime) return null;
+
+    return Math.round((leg.timeEntry.timestamp.getTime() - startTime.getTime()) / (1000 * 60));
+  }
+
+  // Utility function for consistent date/time formatting
+  function formatDateTime(date: Date, includeTime: boolean = true): string {
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      timeZoneName: 'short'
+    };
+    
+    if (includeTime) {
+      options.hour = '2-digit';
+      options.minute = '2-digit';
+      options.hour12 = true;
+    }
+    
+    return date.toLocaleString('en-US', options);
+  }
+
   // Helper function to compare estimated vs actual time for a leg
   function getLegTimeComparison(leg: Leg): LegTimeComparison {
     const estimatedByRunner = getLegEstimatedTimeByRunner(leg);
     const estimatedByLeg = getLegEstimatedTime(leg);
     const estimatedMinutes = estimatedByRunner || estimatedByLeg;
-    const actualMinutes = getLegActualTime(leg);
+    const actualMinutes = getLegActualDuration(leg);
     
     if (actualMinutes === null) {
       return {
@@ -317,45 +409,77 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     });
   });
 
-  const estimatedFinishTime = computed(() => {
+  // Original estimated finish time (based on planned paces before race started)
+  const originalEstimatedFinishTime = computed(() => {
     if (!currentTeam.value || !currentTeam.value.startTime) return null;
     
     let totalEstimatedMinutes = 0;
-    
-    // Find the last completed leg to get the cumulative time
-    const completedLegs = currentTeam.value.legs.filter(leg => isLegCompleted(leg)).sort((a, b) => a.order - b.order);
-    
-    if (completedLegs.length > 0) {
-      const lastCompletedLeg = completedLegs[completedLegs.length - 1];
-      if (lastCompletedLeg) {
-        // Calculate cumulative time from completed legs
-        completedLegs.forEach(leg => {
-          const actualTime = getLegActualTime(leg);
-          if (actualTime !== null) {
-            totalEstimatedMinutes += actualTime;
-          }
-        });
-      }
-    }
-    
-    // Add estimated times for remaining legs
-    const remainingLegs = currentTeam.value.legs.filter(leg => !isLegCompleted(leg));
-    remainingLegs.forEach(leg => {
-      if (leg.runnerId) {
-        const runner = currentTeam.value!.runners.find(r => r.id === leg.runnerId);
-        if (runner) {
-          totalEstimatedMinutes += calculateEstimatedTime(runner.estimatedPaceMinutes, runner.estimatedPaceSeconds, leg.distance);
-        } else {
-          totalEstimatedMinutes += calculateEstimatedTime(leg.estimatedPaceMinutes, leg.estimatedPaceSeconds, leg.distance);
-        }
-      } else {
-        totalEstimatedMinutes += calculateEstimatedTime(leg.estimatedPaceMinutes, leg.estimatedPaceSeconds, leg.distance);
-      }
+    currentTeam.value.legs.forEach(leg => {
+      totalEstimatedMinutes += getLegBestEstimatedTime(leg);
     });
     
     const finishTime = new Date(currentTeam.value.startTime);
     finishTime.setMinutes(finishTime.getMinutes() + totalEstimatedMinutes);
     return finishTime;
+  });
+
+  // Current estimated finish time (for races in progress)
+  const currentEstimatedFinishTime = computed(() => {
+    if (!currentTeam.value || !currentTeam.value.startTime) return null;
+    
+    // If race is completed, return null (use actual finish time instead)
+    if (currentTeam.value.legs.every(leg => isLegCompleted(leg))) {
+      return null;
+    }
+    
+    let totalEstimatedMinutes = 0;
+    
+    // Use actual times for completed legs
+    const completedLegs = currentTeam.value.legs.filter(leg => isLegCompleted(leg));
+    completedLegs.forEach(leg => {
+      const actualTime = getLegActualTime(leg);
+      if (actualTime !== null) {
+        totalEstimatedMinutes += actualTime;
+      }
+    });
+    
+    // Add estimated times for remaining legs
+    const remainingLegs = currentTeam.value.legs.filter(leg => !isLegCompleted(leg));
+    remainingLegs.forEach(leg => {
+      totalEstimatedMinutes += getLegBestEstimatedTime(leg);
+    });
+    
+    const finishTime = new Date(currentTeam.value.startTime);
+    finishTime.setMinutes(finishTime.getMinutes() + totalEstimatedMinutes);
+    return finishTime;
+  });
+
+  // Actual finish time (for completed races)
+  const actualFinishTime = computed(() => {
+    if (!currentTeam.value || !currentTeam.value.startTime) return null;
+    
+    // Only return actual finish time if all legs are completed
+    if (!currentTeam.value.legs.every(leg => isLegCompleted(leg))) {
+      return null;
+    }
+    
+    // Find the last completed leg
+    const lastCompletedLeg = [...currentTeam.value.legs]
+      .filter(leg => isLegCompleted(leg))
+      .sort((a, b) => b.order - a.order)[0];
+    
+    return lastCompletedLeg?.timeEntry?.timestamp || null;
+  });
+
+  // Legacy computed property for backward compatibility
+  const estimatedFinishTime = computed(() => {
+    // For completed races, return original estimated time
+    // For races in progress, return current estimated time
+    if (currentTeam.value?.legs.every(leg => isLegCompleted(leg))) {
+      return originalEstimatedFinishTime.value;
+    } else {
+      return currentEstimatedFinishTime.value;
+    }
   });
 
   const progressPercentage = computed(() => {
@@ -766,6 +890,9 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     remainingLegs,
     currentLeg,
     estimatedFinishTime,
+    originalEstimatedFinishTime,
+    currentEstimatedFinishTime,
+    actualFinishTime,
     progressPercentage,
     teamPerformanceMetrics,
     runnerPerformanceMetrics,
@@ -777,7 +904,12 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     getLegBestEstimatedTime,
     isLegCompleted,
     getLegActualTime,
+    getLegStartTime,
+    getLegEndTime,
+    getLegDuration,
+    getLegActualDuration,
     getLegTimeComparison,
+    formatDateTime,
     
     // Actions
     addRunner,
