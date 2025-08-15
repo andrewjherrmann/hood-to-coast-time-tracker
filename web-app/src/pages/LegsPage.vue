@@ -32,11 +32,22 @@
             </template>
           </q-select>
           
+          <!-- Locked Indicator -->
+          <q-chip
+            v-if="store.currentRace?.locked"
+            color="warning"
+            text-color="white"
+            icon="lock"
+            label="Race Locked"
+            size="md"
+          />
+          
           <q-btn
             color="primary"
             icon="add"
             label="Add New Leg"
             @click="showAddLegDialog = true"
+            :disable="store.currentRace?.locked"
           />
         </div>
       </div>
@@ -120,8 +131,8 @@
                   dense
                   emit-value
                   map-options
-                  :disable="store.isLegCompleted(leg)"
-                  :color="store.isLegCompleted(leg) ? 'grey' : 'primary'"
+                  :disable="store.isLegCompleted(leg) || store.currentRace?.locked"
+                  :color="store.isLegCompleted(leg) || store.currentRace?.locked ? 'grey' : 'primary'"
                   @update:model-value="(value) => assignRunnerToLeg(leg.id, value)"
                 />
                 <div v-if="store.isLegCompleted(leg)" class="text-caption text-grey-6 q-mt-xs">
@@ -170,6 +181,68 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Completion Time Management -->
+              <div v-if="store.isLegCompleted(leg)" class="q-mt-sm">
+                <q-separator class="q-my-sm" />
+                <div class="text-caption">
+                  <div class="row q-gutter-sm items-center">
+                    <div class="col">
+                      <strong>Completion Time:</strong><br>
+                      <span class="text-grey-7">
+                        {{ formatTime(store.getLegEndTime(leg)) }}
+                      </span>
+                    </div>
+                    <div class="col-auto">
+                      <q-btn
+                        flat
+                        round
+                        color="warning"
+                        icon="edit"
+                        size="sm"
+                        @click="editCompletionTime(leg)"
+                        :disable="store.currentRace?.locked"
+                        title="Edit completion time"
+                      />
+                      <q-btn
+                        flat
+                        round
+                        color="negative"
+                        icon="delete"
+                        size="sm"
+                        @click="confirmRemoveCompletionTime(leg)"
+                        :disable="store.currentRace?.locked"
+                        title="Remove completion time"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Record Completion Time -->
+              <div v-else-if="store.isAuthenticated" class="q-mt-sm">
+                <q-separator class="q-my-sm" />
+                <div class="text-caption">
+                  <div class="row q-gutter-sm items-center">
+                    <div class="col">
+                      <strong>Status:</strong><br>
+                      <span class="text-grey-7">Not completed</span>
+                    </div>
+                    <div class="col-auto">
+                      <q-btn
+                        flat
+                        round
+                        color="positive"
+                        icon="timer"
+                        size="sm"
+                        @click="recordCompletionTime(leg)"
+                        :disable="store.currentRace?.locked"
+                        title="Record completion time"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </q-item-section>
 
             <q-item-section side>
@@ -181,6 +254,7 @@
                   icon="edit"
                   size="sm"
                   @click="editLeg(leg)"
+                  :disable="store.currentRace?.locked"
                 />
                 <q-btn
                   flat
@@ -189,6 +263,7 @@
                   icon="delete"
                   size="sm"
                   @click="confirmDeleteLeg(leg)"
+                  :disable="store.currentRace?.locked"
                 />
               </div>
             </q-item-section>
@@ -313,16 +388,121 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Edit Completion Time Dialog -->
+    <q-dialog v-model="showCompletionTimeDialog" persistent>
+      <q-card style="min-width: 400px;">
+        <q-card-section>
+          <div class="text-h6">{{ editingCompletionTime?.timeEntry ? 'Edit Completion Time' : 'Record Completion Time' }}</div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <q-form @submit="handleSaveCompletionTime" class="q-gutter-md">
+            <q-input
+              v-model="completionTimeForm.date"
+              label="Completion Date (M/D/YYYY)"
+              outlined
+              dense
+              class="full-width"
+              placeholder="e.g., 8/23/2024"
+              :rules="[val => !!val || 'Date is required', val => isValidDate(val) || 'Invalid date format']"
+              @blur="formatDateInput"
+            >
+              <template v-slot:hint>
+                Enter date as M/D/YYYY (e.g., 8/23/2024)
+              </template>
+              <template v-slot:append>
+                <q-icon name="event" class="cursor-pointer">
+                  <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                    <q-date
+                      v-model="completionTimeForm.date"
+                      mask="M/D/YYYY"
+                    />
+                  </q-popup-proxy>
+                </q-icon>
+              </template>
+            </q-input>
+
+            <q-input
+              v-model="completionTimeForm.time"
+              label="Completion Time (h:mm AM/PM)"
+              outlined
+              dense
+              class="full-width"
+              placeholder="e.g., 2:30 PM"
+              :rules="[val => !!val || 'Time is required', val => isValidTime(val) || 'Invalid time format']"
+              @blur="formatTimeInput"
+            >
+              <template v-slot:hint>
+                Enter time as h:mm AM/PM (e.g., 2:30 PM)
+              </template>
+              <template v-slot:append>
+                <q-icon name="access_time" class="cursor-pointer">
+                  <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                    <q-time
+                      v-model="completionTimeForm.time"
+                      mask="h:mm A"
+                      format24h
+                    />
+                  </q-popup-proxy>
+                </q-icon>
+              </template>
+            </q-input>
+
+            <div class="row justify-end q-gutter-sm">
+              <q-btn
+                flat
+                label="Cancel"
+                color="primary"
+                @click="closeCompletionTimeDialog"
+              />
+                              <q-btn
+                  unelevated
+                  :label="editingCompletionTime?.timeEntry ? 'Update Time' : 'Record Time'"
+                  color="primary"
+                  type="submit"
+                />
+            </div>
+          </q-form>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- Remove Completion Time Confirmation Dialog -->
+    <q-dialog v-model="showRemoveCompletionDialog">
+      <q-card>
+        <q-card-section class="row items-center">
+          <q-avatar icon="warning" color="warning" text-color="white" />
+          <span class="q-ml-sm">
+            Are you sure you want to remove the completion time for this leg? 
+            This will mark the leg as incomplete.
+          </span>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="primary" v-close-popup />
+          <q-btn
+            flat
+            label="Remove"
+            color="warning"
+            @click="handleRemoveCompletionTime"
+            v-close-popup
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { useQuasar } from 'quasar';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
 import type { Leg, Race } from '../types';
 
 const route = useRoute();
+const $q = useQuasar();
 const store = useHoodToCoastStore();
 
 // Access store properties directly without destructuring
@@ -354,6 +534,17 @@ const showAddLegDialog = ref(false);
 const showDeleteDialog = ref(false);
 const editingLeg = ref<Leg | null>(null);
 const legToDelete = ref<Leg | null>(null);
+
+// Completion time management state
+const showCompletionTimeDialog = ref(false);
+const showRemoveCompletionDialog = ref(false);
+const editingCompletionTime = ref<Leg | null>(null);
+const legToRemoveCompletion = ref<Leg | null>(null);
+
+const completionTimeForm = ref({
+  date: '',
+  time: ''
+});
 
 const legForm = ref({
   description: '',
@@ -565,6 +756,260 @@ onMounted(() => {
     }
   }
 });
+
+// Date and time validation and formatting
+function isValidDate(dateStr: string): boolean {
+  if (!dateStr) return false;
+  
+  // Parse M/D/YYYY format
+  const parts = dateStr.split('/');
+  if (parts.length !== 3) return false;
+  
+  const monthStr = parts[0];
+  const dayStr = parts[1];
+  const yearStr = parts[2];
+  
+  if (!monthStr || !dayStr || !yearStr) return false;
+  
+  const month = parseInt(monthStr);
+  const day = parseInt(dayStr);
+  const year = parseInt(yearStr);
+  
+  if (isNaN(month) || isNaN(day) || isNaN(year)) return false;
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+  if (year < 1900 || year > 2100) return false;
+  
+  // Check if date is valid (e.g., Feb 30 doesn't exist)
+  const date = new Date(year, month - 1, day);
+  return date.getMonth() === month - 1 && date.getDate() === day && date.getFullYear() === year;
+}
+
+function isValidTime(timeStr: string): boolean {
+  if (!timeStr) return false;
+  
+  // Parse h:mm AM/PM format
+  const parts = timeStr.split(' ');
+  if (parts.length !== 2) return false;
+  
+  const timePart = parts[0];
+  const period = parts[1];
+  if (!timePart || !period) return false;
+  
+  const timeComponents = timePart.split(':');
+  if (timeComponents.length !== 2) return false;
+  
+  const hoursStr = timeComponents[0];
+  const minutesStr = timeComponents[1];
+  if (!hoursStr || !minutesStr) return false;
+  
+  const hour = parseInt(hoursStr);
+  const minute = parseInt(minutesStr);
+  
+  if (isNaN(hour) || isNaN(minute)) return false;
+  if (hour < 1 || hour > 12) return false;
+  if (minute < 0 || minute > 59) return false;
+  
+  return period === 'AM' || period === 'PM';
+}
+
+function formatDateInput() {
+  if (!completionTimeForm.value.date) return;
+  
+  // Try to parse and reformat the date
+  const parts = completionTimeForm.value.date.split('/');
+  if (parts.length === 3) {
+    const monthStr = parts[0];
+    const dayStr = parts[1];
+    const yearStr = parts[2];
+    
+    if (monthStr && dayStr && yearStr) {
+      const month = parseInt(monthStr);
+      const day = parseInt(dayStr);
+      const year = parseInt(yearStr);
+      
+      if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
+        // Ensure proper formatting
+        completionTimeForm.value.date = `${month}/${day}/${year}`;
+      }
+    }
+  }
+}
+
+function formatTimeInput() {
+  if (!completionTimeForm.value.time) return;
+  
+  // Try to parse and reformat the time
+  const parts = completionTimeForm.value.time.split(' ');
+  if (parts.length === 2) {
+    const timePart = parts[0];
+    const period = parts[1];
+    
+    if (timePart && period) {
+      const timeComponents = timePart.split(':');
+      
+      if (timeComponents.length === 2) {
+        const hourStr = timeComponents[0];
+        const minuteStr = timeComponents[1];
+        
+        if (hourStr && minuteStr) {
+          const hour = parseInt(hourStr);
+          const minute = parseInt(minuteStr);
+          
+          if (!isNaN(hour) && !isNaN(minute)) {
+            // Ensure proper formatting
+            completionTimeForm.value.time = `${hour}:${minute.toString().padStart(2, '0')} ${period.toUpperCase()}`;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Completion time management
+function recordCompletionTime(leg: Leg) {
+  editingCompletionTime.value = leg;
+  const now = new Date();
+  completionTimeForm.value = {
+    date: `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`,
+    time: now.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    })
+  };
+  showCompletionTimeDialog.value = true;
+}
+
+function editCompletionTime(leg: Leg) {
+  editingCompletionTime.value = leg;
+  if (leg.timeEntry?.timestamp) {
+    const timestamp = leg.timeEntry.timestamp;
+    completionTimeForm.value = {
+      date: `${timestamp.getMonth() + 1}/${timestamp.getDate()}/${timestamp.getFullYear()}`,
+      time: timestamp.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      })
+    };
+  } else {
+    completionTimeForm.value = {
+      date: '',
+      time: ''
+    };
+  }
+  showCompletionTimeDialog.value = true;
+}
+
+function confirmRemoveCompletionTime(leg: Leg) {
+  legToRemoveCompletion.value = leg;
+  showRemoveCompletionDialog.value = true;
+}
+
+function handleSaveCompletionTime() {
+  if (editingCompletionTime.value && completionTimeForm.value.date && completionTimeForm.value.time) {
+    // Validate inputs first
+    if (!isValidDate(completionTimeForm.value.date) || !isValidTime(completionTimeForm.value.time)) {
+      $q.notify({
+        message: 'Please enter valid date and time formats',
+        color: 'negative',
+        icon: 'error',
+        position: 'top-right',
+        timeout: 3000,
+      });
+      return;
+    }
+    
+    // Parse the M/D/YYYY date format
+    const dateParts = completionTimeForm.value.date.split('/');
+    const monthStr = dateParts[0];
+    const dayStr = dateParts[1];
+    const yearStr = dateParts[2];
+    
+    if (!monthStr || !dayStr || !yearStr) return;
+    
+    const month = parseInt(monthStr);
+    const day = parseInt(dayStr);
+    const year = parseInt(yearStr);
+    
+    // Parse the h:mm AM/PM time format
+    const timeString = completionTimeForm.value.time;
+    const parts = timeString.split(' ');
+    const timePart = parts[0];
+    const period = parts[1];
+    
+    if (!timePart || !period) return;
+    
+    const timeComponents = timePart.split(':');
+    const hoursStr = timeComponents[0];
+    const minutesStr = timeComponents[1];
+    
+    if (!hoursStr || !minutesStr) return;
+    
+    const hours = parseInt(hoursStr);
+    const minutes = parseInt(minutesStr);
+    
+    let hour = hours;
+    if (period === 'PM' && hour !== 12) {
+      hour += 12;
+    } else if (period === 'AM' && hour === 12) {
+      hour = 0;
+    }
+    
+    // Create ISO string with proper formatting
+    const dateTimeString = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+    const completionDateTime = new Date(dateTimeString);
+    
+    if (editingCompletionTime.value.timeEntry) {
+      // Update existing completion time
+      store.updateLegCompletionTime(editingCompletionTime.value.id, completionDateTime);
+      $q.notify({
+        message: 'Completion time updated successfully!',
+        color: 'positive',
+        icon: 'check_circle',
+        position: 'top-right',
+        timeout: 2000,
+      });
+    } else {
+      // Record new completion time
+      store.recordLegCompletionTime(editingCompletionTime.value.id, completionDateTime);
+      $q.notify({
+        message: 'Completion time recorded successfully!',
+        color: 'positive',
+        icon: 'check_circle',
+        position: 'top-right',
+        timeout: 2000,
+      });
+    }
+    
+    closeCompletionTimeDialog();
+  }
+}
+
+function handleRemoveCompletionTime() {
+  if (legToRemoveCompletion.value) {
+    store.removeLegCompletionTime(legToRemoveCompletion.value.id);
+    legToRemoveCompletion.value = null;
+    
+    $q.notify({
+      message: 'Completion time removed successfully!',
+      color: 'positive',
+      icon: 'check_circle',
+      position: 'top-right',
+      timeout: 2000,
+    });
+  }
+}
+
+function closeCompletionTimeDialog() {
+  showCompletionTimeDialog.value = false;
+  editingCompletionTime.value = null;
+  completionTimeForm.value = {
+    date: '',
+    time: ''
+  };
+}
 </script>
 
 <style scoped>

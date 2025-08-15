@@ -41,4 +41,5 @@ export interface Race {
   date: Date;
   team: Team;
   isActive: boolean;
+  locked: boolean;
 }

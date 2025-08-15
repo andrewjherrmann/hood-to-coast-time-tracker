@@ -193,6 +193,7 @@ export const mockRaces: Race[] = [
     name: 'Hood to Coast 2023',
     date: new Date('2023-08-25'),
     isActive: false,
+    locked: true,
     team: (() => {
       const runners = createRunnersForYear('htc-2023', 1, 2023);
       return {
@@ -218,6 +219,7 @@ export const mockRaces: Race[] = [
     name: 'Hood to Coast 2024',
     date: new Date('2024-08-23'),
     isActive: false,
+    locked: true,
     team: (() => {
       const runners2023 = createRunnersForYear('htc-2023', 1, 2023);
       const runners = createRunnersForYear('htc-2024', 13, 2024, runners2023);
@@ -244,6 +246,7 @@ export const mockRaces: Race[] = [
     name: 'Hood to Coast 2025',
     date: new Date('2025-08-23'),
     isActive: false,
+    locked: false,
     team: (() => {
       const runners2023 = createRunnersForYear('htc-2023', 1, 2023);
       const runners2024 = createRunnersForYear('htc-2024', 13, 2024, runners2023);
@@ -271,6 +274,7 @@ export const mockRaces: Race[] = [
     name: 'Hood to Coast 2026',
     date: new Date('2026-08-21'),
     isActive: true,
+    locked: false,
     team: (() => {
       const runners2023 = createRunnersForYear('htc-2023', 1, 2023);
       const runners2024 = createRunnersForYear('htc-2024', 13, 2024, runners2023);

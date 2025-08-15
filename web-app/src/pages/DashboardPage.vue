@@ -31,6 +31,17 @@
                 </div>
               </template>
             </q-select>
+            
+            <!-- Locked Indicator -->
+            <q-chip
+              v-if="store.currentRace?.locked"
+              color="warning"
+              text-color="white"
+              icon="lock"
+              label="Race Locked"
+              size="md"
+              class="q-ml-md"
+            />
           </div>
         </div>
       </div>
@@ -200,6 +211,7 @@
                   icon="schedule"
                   label="Set Current Time"
                   @click="setCurrentTime"
+                  :disable="store.currentRace?.locked"
                   class="full-width"
                 />
               </div>
@@ -260,7 +272,7 @@
                   label="Record Completion"
                   @click="recordCompletionTime"
                   :loading="isRecordingTime"
-                  :disable="!completionDateTime"
+                  :disable="!completionDateTime || store.currentRace?.locked"
                   class="full-width"
                 />
               </div>

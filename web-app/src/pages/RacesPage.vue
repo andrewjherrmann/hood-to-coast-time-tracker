@@ -32,11 +32,22 @@
             </template>
           </q-select>
           
+          <!-- Locked Indicator -->
+          <q-chip
+            v-if="store.currentRace?.locked"
+            color="warning"
+            text-color="white"
+            icon="lock"
+            label="Race Locked"
+            size="md"
+          />
+          
           <q-btn
             color="primary"
             icon="add"
             label="New Race"
             @click="showNewRaceDialog = true"
+            :disable="store.currentRace?.locked"
           />
         </div>
       </div>
@@ -80,10 +91,20 @@
             <q-chip size="sm" icon="timer">
               {{ race.team.legs.filter(leg => store.isLegCompleted(leg)).length }} Completed
             </q-chip>
+            <q-chip 
+              v-if="race.locked" 
+              size="sm" 
+              icon="lock" 
+              color="warning"
+              text-color="white"
+            >
+              Locked
+            </q-chip>
           </div>
 
           <div class="row q-gutter-sm">
             <q-btn
+              v-if="!race.locked"
               size="sm"
               color="primary"
               icon="content_copy"
@@ -91,6 +112,7 @@
               @click="duplicateRace(race)"
             />
             <q-btn
+              v-if="!race.locked"
               size="sm"
               color="warning"
               icon="edit"
@@ -98,11 +120,20 @@
               @click="editRace(race)"
             />
             <q-btn
+              v-if="!race.locked"
               size="sm"
               color="negative"
               icon="delete"
               label="Delete"
               @click="confirmDeleteRace(race)"
+            />
+            <q-btn
+              v-if="!race.locked"
+              size="sm"
+              color="info"
+              icon="lock"
+              label="Lock"
+              @click="lockRace(race)"
             />
           </div>
         </q-card-section>
@@ -512,6 +543,14 @@ function duplicateRace(race: Race) {
   duplicateForm.name = `${race.name} (Copy)`;
   duplicateForm.date = '';
   showDuplicateDialog.value = true;
+}
+
+function lockRace(race: Race) {
+  store.lockRace(race.id);
+  $q.notify({
+    type: 'positive',
+    message: 'Race locked successfully!'
+  });
 }
 
 function confirmDuplicateRace() {

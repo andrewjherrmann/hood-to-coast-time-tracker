@@ -786,11 +786,12 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   }
 
   // Race management functions
-  function createRace(raceData: Omit<Race, 'id' | 'isActive'>) {
+  function createRace(raceData: Omit<Race, 'id' | 'isActive' | 'locked'>) {
     const newRace: Race = {
       ...raceData,
       id: `race-${Date.now()}`,
-      isActive: false
+      isActive: false,
+      locked: false
     };
     
     races.value.push(newRace);
@@ -807,6 +808,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
       name: newName,
       date: newDate,
       isActive: false,
+      locked: false,
       team: {
         ...sourceRace.team,
         id: `team-${Date.now()}`,
@@ -865,6 +867,25 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     }
   }
 
+  function updateLegCompletionTime(legId: string, completionTime: Date) {
+    if (!currentTeam.value) return;
+    
+    const leg = currentTeam.value.legs.find(l => l.id === legId);
+    if (leg && leg.timeEntry) {
+      leg.timeEntry.timestamp = completionTime;
+      leg.timeEntry.notes = 'Updated completion time';
+    }
+  }
+
+  function removeLegCompletionTime(legId: string) {
+    if (!currentTeam.value) return;
+    
+    const leg = currentTeam.value.legs.find(l => l.id === legId);
+    if (leg && leg.timeEntry) {
+      delete leg.timeEntry;
+    }
+  }
+
   function setActiveRace(raceId: string) {
     // Set all races as inactive first
     races.value.forEach(race => {
@@ -875,6 +896,13 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     const race = races.value.find(r => r.id === raceId);
     if (race) {
       race.isActive = true;
+    }
+  }
+
+  function lockRace(raceId: string) {
+    const race = races.value.find(r => r.id === raceId);
+    if (race) {
+      race.locked = true;
     }
   }
 
@@ -944,6 +972,9 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     updateRace,
     deleteRace,
     recordLegCompletionTime,
-    setActiveRace
+    updateLegCompletionTime,
+    removeLegCompletionTime,
+    setActiveRace,
+    lockRace
   };
 });
