@@ -1103,7 +1103,28 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     try {
       isLoading.value = true;
       const response = await racesApi.getAll();
-      races.value = response.races;
+      
+      // Parse API data to convert timestamp strings to Date objects
+      const parsedRaces = response.races.map(race => {
+        const parsedRace = {
+          ...race,
+          date: new Date(race.date),
+          team: race.team ? {
+            ...race.team,
+            startTime: race.team.startTime ? new Date(race.team.startTime) : new Date(),
+            legs: race.team.legs ? race.team.legs.map(leg => ({
+              ...leg,
+              timeEntry: leg.timeEntry ? {
+                ...leg.timeEntry,
+                timestamp: leg.timeEntry.timestamp ? new Date(leg.timeEntry.timestamp) : new Date()
+              } : undefined
+            })) : []
+          } : race.team
+        };
+        return parsedRace as Race;
+      });
+      
+      races.value = parsedRaces;
       console.log(`Loaded ${response.count} races from API`);
       
       // Auto-select the most recent race after loading from API
