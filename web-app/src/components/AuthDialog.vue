@@ -127,7 +127,7 @@ function closeDialog() {
   isSubmitting.value = false;
 }
 
-function handleSubmit() {
+async function handleSubmit() {
   console.log('=== AUTH DEBUG START ===');
   console.log('Form submitted with:', { email: form.email, password: form.password });
   console.log('Password length:', form.password.length);
@@ -137,7 +137,7 @@ function handleSubmit() {
   
   try {
     console.log('Calling store.signIn...');
-    const success = store.signIn(form.email, form.password);
+    const success = await store.signIn(form.email, form.password);
     console.log('Sign in result:', success);
     console.log('Store auth state:', store.isAuthenticated);
     console.log('Store current user:', store.currentUser);
@@ -173,10 +173,10 @@ function handleSubmit() {
   }
 }
 
-function testSignIn() {
+async function testSignIn() {
   console.log('=== TEST SIGN IN START ===');
   console.log('Attempting to sign in as admin@example.com / password');
-  const success = store.signIn('admin@example.com', 'password');
+  const success = await store.signIn('admin@example.com', 'password');
   console.log('Test sign in result:', success);
   console.log('Store auth state after test:', store.isAuthenticated);
   console.log('Store current user after test:', store.currentUser);

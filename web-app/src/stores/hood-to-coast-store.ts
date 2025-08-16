@@ -7,6 +7,7 @@ import type {
   Runner, 
   Leg, 
   Race, 
+  Team,
   User, 
   AuthSession, 
   SessionInfo, 
@@ -48,6 +49,9 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   const isLoading = ref(false);
   const isAuthenticated = ref(false);
   const currentUser = ref<User | null>(null);
+  
+  // Data filtering state
+  const hasFullDataAccess = ref(false);
 
   // Authentication persistence
   const AUTH_STORAGE_KEY = 'htc-auth-session';
@@ -56,7 +60,8 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   // Computed
   const currentRace = computed(() => {
     if (!currentRaceId.value) return null;
-    return races.value.find(race => race.id === currentRaceId.value) || null;
+    const race = races.value.find(race => race.id === currentRaceId.value);
+    return race ? filterRaceData(race) : null;
   });
 
   const currentTeam = computed(() => currentRace.value?.team || null);
@@ -86,6 +91,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   if (savedUser) {
     isAuthenticated.value = true;
     currentUser.value = savedUser;
+    hasFullDataAccess.value = true;
   }
 
   // Set up session refresh on user activity
@@ -153,6 +159,36 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
       return runnerEstimated;
     }
     return getLegEstimatedTime(leg);
+  }
+  
+  // Helper function to filter sensitive runner data based on authentication
+  function filterRunnerData(runner: Runner): Runner {
+    if (hasFullDataAccess.value) {
+      return runner; // Return full data for authenticated users
+    }
+    
+    // Return filtered data for unauthenticated users
+    return {
+      ...runner,
+      email: '***@***.***',
+      phone: '***-***-****'
+    };
+  }
+  
+  // Helper function to filter team data based on authentication
+  function filterTeamData(team: Team): Team {
+    return {
+      ...team,
+      runners: team.runners.map(filterRunnerData)
+    };
+  }
+  
+  // Helper function to filter race data based on authentication
+  function filterRaceData(race: Race): Race {
+    return {
+      ...race,
+      team: filterTeamData(race.team)
+    };
   }
 
   // Helper function to check if a leg is completed
@@ -848,13 +884,26 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     return sessionInfo.timeRemaining < 30 * 60 * 1000;
   }
 
-  function signIn(email: string, password: string) {
+  async function signIn(email: string, password: string) {
     // Mock authentication
     const user = mockUsers.find(u => u.email === email && u.password === password);
     if (user) {
       isAuthenticated.value = true;
       currentUser.value = { id: user.id, email: user.email, name: user.name };
       saveAuthSession(currentUser.value);
+      
+      // Grant full data access
+      hasFullDataAccess.value = true;
+      
+      // Reload data to get full information for authenticated user
+      if (!isMockMode.value && isApiAvailable()) {
+        try {
+          await loadRacesFromApi();
+        } catch (error) {
+          console.error('Failed to reload data after authentication:', error);
+        }
+      }
+      
       return true;
     }
     return false;
@@ -863,6 +912,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   function signOut() {
     isAuthenticated.value = false;
     currentUser.value = null;
+    hasFullDataAccess.value = false;
     clearAuthSession();
   }
 
@@ -1124,8 +1174,12 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
         return parsedRace as Race;
       });
       
+      // Store the full data internally
       races.value = parsedRaces;
       console.log(`Loaded ${response.count} races from API`);
+      
+      // Apply data filtering based on authentication status
+      // The computed properties will automatically filter the data
       
       // Auto-select the most recent race after loading from API
       if (races.value.length > 0 && !currentRaceId.value) {
@@ -1198,6 +1252,17 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
       window.location.reload();
     }
   }
+  
+  // Function to reload data after authentication
+  async function reloadDataAfterAuth() {
+    if (hasFullDataAccess.value && !isMockMode.value && isApiAvailable()) {
+      try {
+        await loadRacesFromApi();
+      } catch (error) {
+        console.error('Failed to reload data after authentication:', error);
+      }
+    }
+  }
 
   // Get API status
   function getApiStatus() {
@@ -1216,6 +1281,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
       if (isMockMode.value) {
         // Mock mode: load mock data immediately
         races.value = [...mockRaces];
+        // Note: Data filtering will be applied through computed properties
         const mostRecent = nextUpcomingRace.value;
         if (mostRecent) {
           mostRecent.isActive = true;
@@ -1263,6 +1329,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     isLoading,
     isAuthenticated,
     currentUser,
+    hasFullDataAccess,
     
     // Computed
     currentRace,
@@ -1332,6 +1399,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     saveRaceToApi,
     deleteRaceFromApi,
     toggleMockModeForDevelopment,
+    reloadDataAfterAuth,
     getApiStatus,
     
     // Environment info
