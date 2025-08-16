@@ -216,6 +216,20 @@ export class HoodToCoastStack extends cdk.Stack {
       description: 'API Key ID for Hood to Coast Time Tracker',
     });
 
+    // Lambda function for races endpoint (static data for now)
+    const racesFunction = new lambda.Function(this, 'RacesFunction', {
+      functionName: `${props.environment}-htc-races`,
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('lambda/races'),
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 256,
+      logRetention: logs.RetentionDays.ONE_WEEK,
+      environment: {
+        ENVIRONMENT: props.environment,
+      },
+    });
+
     // API Gateway
     const api = new apigateway.RestApi(this, 'HoodToCoastApi', {
       restApiName: `${props.environment}-htc-api`,
@@ -283,56 +297,25 @@ export class HoodToCoastStack extends cdk.Stack {
     });
 
     usagePlan.addApiKey(apiKey);
+    
+    // Associate usage plan with API stage
+    usagePlan.addApiStage({
+      stage: api.deploymentStage,
+    });
 
-    // SIMPLE STATIC ENDPOINTS (no Lambda integration yet)
+    // Force API Gateway deployment to ensure all changes are applied
+    new apigateway.Deployment(this, 'ApiDeployment', {
+      api,
+      description: 'Deployment for Lambda integration changes',
+      retainDeployments: false,
+    });
+
+    // SIMPLE STATIC ENDPOINTS (with Lambda integration for GET /races)
     const racesResource = api.root.addResource('races');
     
-    // Simple GET endpoint that returns static data
-    racesResource.addMethod('GET', new apigateway.MockIntegration({
-      requestTemplates: {
-        'application/json': '{"statusCode": 200}'
-      },
-      integrationResponses: [{
-        statusCode: '200',
-        responseTemplates: {
-          'application/json': JSON.stringify({
-            races: [
-              {
-                id: 'race_1',
-                name: 'Hood to Coast 2024',
-                year: 2024,
-                location: 'Portland, OR',
-                status: 'upcoming'
-              },
-              {
-                id: 'race_2', 
-                name: 'Hood to Coast 2023',
-                year: 2023,
-                location: 'Portland, OR',
-                status: 'completed'
-              }
-            ],
-            count: 2
-          })
-        },
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
-          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Api-Key'",
-          'method.response.header.Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'"
-        }
-      }],
-      passthroughBehavior: apigateway.PassthroughBehavior.NEVER,
-      contentHandling: apigateway.ContentHandling.CONVERT_TO_TEXT,
-    }), {
+    // GET endpoint now uses Lambda integration (returns static data)
+    racesResource.addMethod('GET', new apigateway.LambdaIntegration(racesFunction), {
       apiKeyRequired: true,
-      methodResponses: [{
-        statusCode: '200',
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': true,
-          'method.response.header.Access-Control-Allow-Headers': true,
-          'method.response.header.Access-Control-Allow-Methods': true
-        }
-      }]
     });
 
     // Simple POST endpoint that returns success
