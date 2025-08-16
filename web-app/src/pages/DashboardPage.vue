@@ -1,16 +1,20 @@
 <template>
   <q-page class="q-pa-md">
     <!-- Header -->
-    <div class="row items-center justify-between q-mb-lg">
-      <div class="col">
-        <div class="row items-center q-mb-sm">
-          <div class="col">
+    <div class="row q-mb-lg q-pr-md">
+      <!-- Team Info and Race Selection -->
+      <div class="col-12">
+        <div class="row">
+          <!-- Team Info -->
+          <div class="col-12 col-md-4 q-pr-md">
             <h4 class="q-my-none">{{ currentTeam?.name || 'Team Dashboard' }}</h4>
             <p class="q-mt-sm q-mb-none text-grey-7">
               Start Time: {{ formatStartTime(currentTeam?.startTime) }}
             </p>
           </div>
-          <div class="col-auto">
+          
+          <!-- Race Selection -->
+          <div class="col-12 col-md-8 q-pl-md">
             <q-select
               v-model="selectedRaceId"
               :options="raceOptions"
@@ -19,7 +23,7 @@
               label="Select Race"
               outlined
               dense
-              style="min-width: 200px;"
+              class="full-width"
               @update:model-value="onRaceChange"
             >
               <template v-slot:prepend>
@@ -40,55 +44,49 @@
               icon="lock"
               label="Race Locked"
               size="md"
-              class="q-ml-md"
+              class="q-mt-sm"
             />
           </div>
         </div>
       </div>
-      <div class="col-auto">
-        <q-chip
-          :color="isMockMode ? 'orange' : 'green'"
-          text-color="white"
-          :label="isMockMode ? 'Mock Mode' : 'Live Mode'"
-          size="sm"
-        />
-      </div>
+      
+
     </div>
 
     <!-- Progress Overview -->
-    <div class="row q-gutter-md q-mb-lg">
-             <div class="col-12 col-md-3">
-         <q-card class="text-center">
-           <q-card-section>
-             <div class="text-h4 text-primary">{{ totalDistance }}</div>
-             <div class="text-caption">Total Distance (miles)</div>
-           </q-card-section>
-         </q-card>
-       </div>
-       <div class="col-12 col-md-3">
-         <q-card class="text-center">
-           <q-card-section>
-             <div class="text-h4 text-positive">{{ completedLegs.length }}</div>
-             <div class="text-caption">Completed Legs</div>
-           </q-card-section>
-         </q-card>
-       </div>
-       <div class="col-12 col-md-3">
-         <q-card class="text-center">
-           <q-card-section>
-             <div class="text-h4 text-info">{{ remainingLegs.length }}</div>
-             <div class="text-caption">Remaining Legs</div>
-           </q-card-section>
-         </q-card>
-       </div>
-       <div class="col-12 col-md-3">
-         <q-card class="text-center">
-           <q-card-section>
-             <div class="text-h4 text-secondary">{{ progressPercentage.toFixed(1) }}%</div>
-             <div class="text-caption">Progress</div>
-           </q-card-section>
-         </q-card>
-       </div>
+    <div class="row q-mb-lg">
+            <div class="col-12 col-md-3 q-pr-md q-mb-md">
+        <q-card class="text-center">
+          <q-card-section>
+            <div class="text-h4 text-primary">{{ totalDistance }}</div>
+            <div class="text-caption">Total Distance (miles)</div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="col-12 col-md-3 q-px-md q-mb-md">
+        <q-card class="text-center">
+          <q-card-section>
+            <div class="text-h4 text-positive">{{ completedLegs.length }}</div>
+            <div class="text-caption">Completed Legs</div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="col-12 col-md-3 q-px-md q-mb-md">
+        <q-card class="text-center">
+          <q-card-section>
+            <div class="text-h4 text-info">{{ remainingLegs.length }}</div>
+            <div class="text-caption">Remaining Legs</div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="col-12 col-md-3 q-pl-md q-mb-md">
+        <q-card class="text-center">
+          <q-card-section>
+            <div class="text-h4 text-secondary">{{ progressPercentage.toFixed(1) }}%</div>
+            <div class="text-caption">Progress</div>
+          </q-card-section>
+        </q-card>
+      </div>
     </div>
 
     <!-- Progress Bar -->
@@ -216,6 +214,18 @@
                 />
               </div>
               
+              <!-- Set Estimated Time Button -->
+              <div class="q-mb-md">
+                <q-btn
+                  color="orange"
+                  icon="timer_off"
+                  label="Set to Estimated Time"
+                  @click="setToEstimatedTime"
+                  :disable="store.currentRace?.locked"
+                  class="full-width"
+                />
+              </div>
+              
                              <!-- DateTime Picker -->
                <div class="q-mb-md">
                  <div class="row q-gutter-md">
@@ -273,67 +283,67 @@
       </q-card-section>
     </q-card>
 
-                   <!-- Finish Time Information -->
-      <q-card class="q-mb-lg">
-        <q-card-section>
-          <div class="text-h6 q-mb-md">Finish Time Information</div>
-          
-          <!-- For completed races -->
-          <div v-if="store.actualFinishTime" class="text-center">
-            <div class="row q-gutter-md">
-              <div class="col-12 col-md-6">
-                <div class="text-subtitle2 q-mb-sm">Original Estimated Finish Time</div>
-                                                   <div class="text-h5 text-info q-mb-sm">
-                    {{ store.originalEstimatedFinishTime ? formatFinishTime(store.originalEstimatedFinishTime) : 'Not available' }}
-                  </div>
-                  <div class="text-caption">Based on planned paces</div>
-                </div>
-                <div class="col-12 col-md-6">
-                  <div class="text-subtitle2 q-mb-sm">Actual Finish Time</div>
-                  <div class="text-h4 text-positive q-mb-sm">
-                    {{ store.actualFinishTime ? formatFinishTime(store.actualFinishTime) : 'Not available' }}
-                  </div>
-                  <div class="text-caption">When race was completed</div>
-               </div>
+    <!-- Finish Time Information -->
+    <q-card class="q-mb-lg">
+      <q-card-section class="text-center">
+        <div class="text-h6 q-mb-md">Finish Time Information</div>
+        
+        <!-- For completed races -->
+        <div v-if="store.actualFinishTime">
+          <div class="row q-gutter-md justify-center">
+            <div class="col-12 col-md-6">
+              <div class="text-subtitle2 q-mb-sm">Original Estimated Finish Time</div>
+              <div class="text-h5 text-info q-mb-sm">
+                {{ store.originalEstimatedFinishTime ? formatFinishTime(store.originalEstimatedFinishTime) : 'Not available' }}
+              </div>
+              <div class="text-caption">Based on planned paces</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="text-subtitle2 q-mb-sm">Actual Finish Time</div>
+              <div class="text-h4 text-positive q-mb-sm">
+                {{ store.actualFinishTime ? formatFinishTime(store.actualFinishTime) : 'Not available' }}
+              </div>
+              <div class="text-caption">When race was completed</div>
             </div>
           </div>
-          
-          <!-- For races in progress -->
-          <div v-else-if="store.currentEstimatedFinishTime" class="text-center">
-            <div class="row q-gutter-md">
-              <div class="col-12 col-md-6">
-                <div class="text-subtitle2 q-mb-sm">Original Estimated Finish Time</div>
-                                                   <div class="text-h5 text-info q-mb-sm">
-                    {{ store.originalEstimatedFinishTime ? formatFinishTime(store.originalEstimatedFinishTime) : 'Not available' }}
-                  </div>
-                  <div class="text-caption">Based on planned paces</div>
-                </div>
-                <div class="col-12 col-md-6">
-                  <div class="text-subtitle2 q-mb-sm">Current Estimated Finish Time</div>
-                  <div class="text-h5 text-warning q-mb-sm">
-                    {{ store.currentEstimatedFinishTime ? formatFinishTime(store.currentEstimatedFinishTime) : 'Not available' }}
-                  </div>
-                  <div class="text-caption">Based on completed legs + estimated remaining</div>
-               </div>
+        </div>
+        
+        <!-- For races in progress -->
+        <div v-else-if="store.currentEstimatedFinishTime">
+          <div class="row q-gutter-md justify-center">
+            <div class="col-12 col-md-6">
+              <div class="text-subtitle2 q-mb-sm">Original Estimated Finish Time</div>
+              <div class="text-h5 text-info q-mb-sm">
+                {{ store.originalEstimatedFinishTime ? formatFinishTime(store.originalEstimatedFinishTime) : 'Not available' }}
+              </div>
+              <div class="text-caption">Based on planned paces</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="text-subtitle2 q-mb-sm">Current Estimated Finish Time</div>
+              <div class="text-h5 text-warning q-mb-sm">
+                {{ store.currentEstimatedFinishTime ? formatFinishTime(store.currentEstimatedFinishTime) : 'Not available' }}
+              </div>
+              <div class="text-caption">Based on completed legs + estimated remaining</div>
             </div>
           </div>
-          
-          <!-- For races not started -->
-          <div v-else-if="store.originalEstimatedFinishTime" class="text-center">
-            <div class="text-subtitle2 q-mb-sm">Original Estimated Finish Time</div>
-                                    <div class="text-h4 text-info q-mb-sm">
-             {{ store.originalEstimatedFinishTime ? formatFinishTime(store.originalEstimatedFinishTime) : 'Not available' }}
-           </div>
-           <div class="text-caption">Based on planned paces</div>
+        </div>
+        
+        <!-- For races not started -->
+        <div v-else-if="store.originalEstimatedFinishTime">
+          <div class="text-subtitle2 q-mb-sm">Original Estimated Finish Time</div>
+          <div class="text-h4 text-info q-mb-sm">
+            {{ store.originalEstimatedFinishTime ? formatFinishTime(store.originalEstimatedFinishTime) : 'Not available' }}
           </div>
-          
-          <!-- Fallback -->
-          <div v-else class="text-center text-grey-6">
-            <q-icon name="schedule" size="48px" />
-            <div class="text-h6 q-mt-sm">No start time set</div>
-          </div>
-        </q-card-section>
-      </q-card>
+          <div class="text-caption">Based on planned paces</div>
+        </div>
+        
+        <!-- Fallback -->
+        <div v-else class="text-grey-6">
+          <q-icon name="schedule" size="48px" />
+          <div class="text-h6 q-mt-sm">No start time set</div>
+        </div>
+      </q-card-section>
+    </q-card>
 
      <!-- Race Completion Summary -->
      <q-card v-if="completedLegs.length > 0" class="q-mb-lg">
@@ -478,7 +488,7 @@ watch(() => store.currentRaceId, (newValue) => {
 
 // Access store properties directly without destructuring
 const currentTeam = computed(() => store.currentTeam);
-const isMockMode = computed(() => store.isMockMode);
+
 const totalDistance = computed(() => store.totalDistance);
 const completedLegs = computed(() => store.completedLegs);
 const remainingLegs = computed(() => store.remainingLegs);
@@ -685,6 +695,30 @@ function setCurrentTime() {
   
   // Format time as h:mm AM/PM
   completionTime.value = now.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    hour12: true 
+  });
+}
+
+function setToEstimatedTime() {
+  if (!currentLeg.value || !currentTeam.value?.startTime) return;
+  
+  // Calculate the estimated completion time based on leg start time + estimated duration
+  const legStartTime = store.getLegStartTime(currentLeg.value);
+  if (!legStartTime) return;
+  
+  const estimatedDurationMinutes = store.getLegEstimatedTime(currentLeg.value);
+  const estimatedCompletionTime = new Date(legStartTime.getTime() + estimatedDurationMinutes * 60 * 1000);
+  
+  // Format date as M/D/YYYY
+  const month = estimatedCompletionTime.getMonth() + 1;
+  const day = estimatedCompletionTime.getDate();
+  const year = estimatedCompletionTime.getFullYear();
+  completionDate.value = `${month}/${day}/${year}`;
+  
+  // Format time as h:mm AM/PM
+  completionTime.value = estimatedCompletionTime.toLocaleTimeString('en-US', { 
     hour: 'numeric', 
     minute: '2-digit',
     hour12: true 

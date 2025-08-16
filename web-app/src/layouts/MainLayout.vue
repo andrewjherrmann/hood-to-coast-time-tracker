@@ -15,7 +15,7 @@
           Hood to Coast Tracker
         </q-toolbar-title>
 
-        <!-- Debug Panel (Development Only) -->
+        <!-- Debug Panel and Mock Mode (Development Only) -->
         <div v-if="isDevelopment" class="row items-center q-gutter-sm">
           <q-btn
             flat
@@ -29,6 +29,13 @@
           >
             <q-tooltip>Debug Panel</q-tooltip>
           </q-btn>
+          
+          <q-chip
+            :color="store.isMockMode ? 'orange' : 'green'"
+            text-color="white"
+            :label="store.isMockMode ? 'Mock Mode' : 'Live Mode'"
+            size="sm"
+          />
         </div>
 
         <!-- Authentication Section -->
@@ -184,17 +191,16 @@ const linksList = [
     link: '/races'
   },
   {
-    title: 'Legs',
-    caption: 'Configure race legs',
-    icon: 'route',
-    link: '/legs'
-  },
-
-  {
     title: 'Runners',
     caption: 'Manage team runners',
     icon: 'people',
     link: '/runners'
+  },
+  {
+    title: 'Legs',
+    caption: 'Configure race legs',
+    icon: 'route',
+    link: '/legs'
   },
   {
     title: 'Settings',
