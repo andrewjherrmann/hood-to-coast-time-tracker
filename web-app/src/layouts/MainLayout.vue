@@ -13,6 +13,14 @@
 
         <q-toolbar-title>
           Hood to Coast Tracker
+          <q-chip
+            v-if="!store.isInitialized"
+            color="info"
+            text-color="white"
+            label="Initializing..."
+            size="xs"
+            class="q-ml-sm"
+          />
         </q-toolbar-title>
 
         <!-- Debug Panel and Mock Mode (Development Only) -->

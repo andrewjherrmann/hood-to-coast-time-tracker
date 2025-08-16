@@ -63,6 +63,9 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
 
   const activeRace = computed(() => races.value.find(race => race.isActive) || null);
 
+  // Check if store is fully initialized
+  const isInitialized = computed(() => races.value.length > 0);
+
   // Find the most recent race (latest date, whether past or future)
   const nextUpcomingRace = computed(() => {
     if (races.value.length === 0) return null;
@@ -75,8 +78,8 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     return sortedRaces[0];
   });
 
-  // Initialize with mock data first (will be updated later if API is available)
-  races.value = [...mockRaces];
+  // Don't initialize with mock data - wait for proper initialization
+  races.value = [];
 
   // Initialize authentication state from localStorage
   const savedUser = loadAuthSession();
@@ -1102,10 +1105,20 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
       const response = await racesApi.getAll();
       races.value = response.races;
       console.log(`Loaded ${response.count} races from API`);
+      
+      // Auto-select the most recent race after loading from API
+      if (races.value.length > 0 && !currentRaceId.value) {
+        const mostRecent = nextUpcomingRace.value;
+        if (mostRecent) {
+          currentRaceId.value = mostRecent.id;
+          console.log(`Auto-selected race: ${mostRecent.name}`);
+        }
+      }
     } catch (error) {
       console.error('Failed to load races from API:', error);
-      // Fall back to mock data on error
-      races.value = [...mockRaces];
+      // Don't fall back to mock data here - let initializeStore handle it
+      races.value = [];
+      throw error;
     } finally {
       isLoading.value = false;
     }
@@ -1177,28 +1190,49 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   }
 
   // Initialize the store after all functions are defined
-  const initializeStore = () => {
-    // Set the most recent race as active
-    const mostRecent = nextUpcomingRace.value;
-    
-    if (mostRecent) {
-      mostRecent.isActive = true;
-      currentRaceId.value = mostRecent.id;
-    } else {
-      // Fallback to first race if no races exist
-      currentRaceId.value = races.value[0]?.id || null;
-    }
-
-    // If not in mock mode, try to load from API
-    if (!isMockMode.value) {
-      loadRacesFromApi().catch(() => {
-        console.log('API failed, using mock data');
-      });
+  const initializeStore = async () => {
+    try {
+      if (isMockMode.value) {
+        // Mock mode: load mock data immediately
+        races.value = [...mockRaces];
+        const mostRecent = nextUpcomingRace.value;
+        if (mostRecent) {
+          mostRecent.isActive = true;
+          currentRaceId.value = mostRecent.id;
+        }
+      } else {
+        // Live mode: try to load from API first
+        await loadRacesFromApi();
+        
+        // If API fails or returns no data, fall back to mock data
+        if (races.value.length === 0) {
+          console.log('API returned no data, falling back to mock data');
+          races.value = [...mockRaces];
+          const mostRecent = nextUpcomingRace.value;
+          if (mostRecent) {
+            mostRecent.isActive = true;
+            currentRaceId.value = mostRecent.id;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to initialize store:', error);
+      // Fall back to mock data on any error
+      races.value = [...mockRaces];
+      const mostRecent = nextUpcomingRace.value;
+      if (mostRecent) {
+        mostRecent.isActive = true;
+        currentRaceId.value = mostRecent.id;
+      }
+    } finally {
+      isLoading.value = false;
     }
   };
 
   // Initialize the store
-  initializeStore();
+  // Note: initializeStore is async but we can't await it here in the store definition
+  // The store will initialize asynchronously when called
+  void initializeStore();
 
   return {
     // State
@@ -1213,6 +1247,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     currentRace,
     currentTeam,
     activeRace,
+    isInitialized,
     totalDistance,
     completedLegs,
     remainingLegs,

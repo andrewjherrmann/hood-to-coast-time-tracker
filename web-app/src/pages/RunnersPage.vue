@@ -1,7 +1,16 @@
 <template>
   <q-page class="q-pa-md">
-    <!-- Header -->
-    <div class="row items-center justify-between q-mb-lg">
+    <!-- Loading State -->
+    <div v-if="!store.isInitialized" class="text-center q-pa-xl">
+      <q-spinner-dots size="50px" color="primary" />
+      <div class="text-h6 q-mt-md">Loading Runners...</div>
+      <div class="text-caption text-grey-6 q-mt-sm">Please wait while we load your race data</div>
+    </div>
+
+    <!-- Runners Content -->
+    <div v-else>
+      <!-- Header -->
+      <div class="row items-center justify-between q-mb-lg">
       <div class="col">
         <h4 class="q-my-none">Manage Runners</h4>
         <p class="q-mt-sm q-mb-none text-grey-7">
@@ -262,6 +271,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+    </div> <!-- Close runners content div -->
   </q-page>
 </template>
 

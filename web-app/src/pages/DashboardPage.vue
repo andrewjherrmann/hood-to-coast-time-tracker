@@ -1,7 +1,16 @@
 <template>
   <q-page class="q-pa-md">
-    <!-- Header -->
-    <div class="row q-mb-lg">
+    <!-- Loading State -->
+    <div v-if="!store.isInitialized" class="text-center q-pa-xl">
+      <q-spinner-dots size="50px" color="primary" />
+      <div class="text-h6 q-mt-md">Loading Dashboard...</div>
+      <div class="text-caption text-grey-6 q-mt-sm">Please wait while we load your race data</div>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div v-else>
+      <!-- Header -->
+      <div class="row q-mb-lg">
       <!-- Team Info and Race Selection -->
       <div class="col-12">
         <div class="row justify-between">
@@ -447,10 +456,7 @@
          </div>
       </q-card-section>
     </q-card>
-
-
-
-
+    </div> <!-- Close dashboard content div -->
   </q-page>
 </template>
 
@@ -485,6 +491,16 @@ watch(selectedRaceId, async (newValue) => {
 watch(() => store.currentRaceId, (newValue) => {
   selectedRaceId.value = newValue;
 });
+
+// Watch for races being loaded and auto-select the most recent race if none is selected
+watch(() => store.races, (newRaces) => {
+  if (newRaces.length > 0 && !selectedRaceId.value) {
+    const mostRecentRaceId = getUpcomingRaceId();
+    if (mostRecentRaceId) {
+      selectedRaceId.value = mostRecentRaceId;
+    }
+  }
+}, { immediate: true });
 
 // Access store properties directly without destructuring
 const currentTeam = computed(() => store.currentTeam);

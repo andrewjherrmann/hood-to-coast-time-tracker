@@ -1,6 +1,15 @@
 <template>
   <q-page padding>
-    <div class="row q-mb-lg">
+    <!-- Loading State -->
+    <div v-if="!store.isInitialized" class="text-center q-pa-xl">
+      <q-spinner-dots size="50px" color="primary" />
+      <div class="text-h6 q-mt-md">Loading Races...</div>
+      <div class="text-caption text-grey-6 q-mt-sm">Please wait while we load your race data</div>
+    </div>
+
+    <!-- Races Content -->
+    <div v-else>
+      <div class="row q-mb-lg">
       <div class="col">
         <h4 class="q-mb-sm">Race Management</h4>
         <p class="text-grey-7">Create and manage your races</p>
@@ -303,6 +312,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+    </div> <!-- Close races content div -->
   </q-page>
 </template>
 

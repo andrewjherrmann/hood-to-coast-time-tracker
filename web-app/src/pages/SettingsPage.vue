@@ -1,7 +1,16 @@
 <template>
   <q-page class="q-pa-md">
-    <!-- Header -->
-    <div class="row items-center justify-between q-mb-lg">
+    <!-- Loading State -->
+    <div v-if="!store.isInitialized" class="text-center q-pa-xl">
+      <q-spinner-dots size="50px" color="primary" />
+      <div class="text-h6 q-mt-md">Loading Settings...</div>
+      <div class="text-caption text-grey-6 q-mt-sm">Please wait while we load your configuration</div>
+    </div>
+
+    <!-- Settings Content -->
+    <div v-else>
+      <!-- Header -->
+      <div class="row items-center justify-between q-mb-lg">
       <h4 class="q-my-none">Settings</h4>
     </div>
 
@@ -153,8 +162,7 @@
          </q-card>
        </div>
     </div>
-
-    
+    </div> <!-- Close settings content div -->
   </q-page>
 </template>
 

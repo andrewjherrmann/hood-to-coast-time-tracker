@@ -1,7 +1,16 @@
 <template>
   <q-page class="q-pa-md">
-    <!-- Header -->
-    <div class="row items-center justify-between q-mb-lg">
+    <!-- Loading State -->
+    <div v-if="!store.isInitialized" class="text-center q-pa-xl">
+      <q-spinner-dots size="50px" color="primary" />
+      <div class="text-h6 q-mt-md">Loading Legs...</div>
+      <div class="text-caption text-grey-6 q-mt-sm">Please wait while we load your race data</div>
+    </div>
+
+    <!-- Legs Content -->
+    <div v-else>
+      <!-- Header -->
+      <div class="row items-center justify-between q-mb-lg">
       <div class="col">
         <h4 class="q-my-none">Manage Legs</h4>
         <p class="q-mt-sm q-mb-none text-grey-7">
@@ -84,58 +93,75 @@
             </q-item-section>
 
             <q-item-section>
-              <div class="row q-gutter-sm q-mb-sm">
-                <q-chip
-                  :color="getDifficultyColor(leg.difficulty)"
-                  text-color="white"
-                  :label="leg.difficulty"
-                  size="sm"
-                />
-                <q-chip
-                  color="primary"
-                  text-color="white"
-                  :label="`${leg.distance} mi`"
-                  size="sm"
-                />
-                <q-chip
-                  color="secondary"
-                  text-color="white"
-                  :label="`${store.getLegEstimatedTime(leg)} min`"
-                  size="sm"
-                />
-                <q-chip
-                  v-if="store.getLegEstimatedTimeByRunner(leg) && 
-                         store.getLegEstimatedTimeByRunner(leg) !== store.getLegEstimatedTime(leg)"
-                  color="accent"
-                  text-color="white"
-                  :label="`${store.getLegEstimatedTime(leg)} min (runner)`"
-                  size="sm"
-                />
-                <q-chip
-                  :color="store.isLegCompleted(leg) ? 'positive' : 'grey'"
-                  text-color="white"
-                  :label="store.isLegCompleted(leg) ? 'Completed' : 'Pending'"
-                  size="sm"
-                />
+              <!-- Header with chips and action buttons -->
+              <div class="row q-gutter-sm q-mb-sm items-center justify-between">
+                <div class="row q-gutter-sm">
+                  <q-chip
+                    :color="getDifficultyColor(leg.difficulty)"
+                    text-color="white"
+                    :label="leg.difficulty"
+                    size="sm"
+                  />
+                  <q-chip
+                    color="primary"
+                    text-color="white"
+                    :label="`${leg.distance} mi`"
+                    size="sm"
+                  />
+                  <q-chip
+                    color="secondary"
+                    text-color="white"
+                    :label="`${store.getLegEstimatedTime(leg)} min`"
+                    size="sm"
+                  />
+                  <q-chip
+                    v-if="store.getLegEstimatedTimeByRunner(leg) && 
+                           store.getLegEstimatedTimeByRunner(leg) !== store.getLegEstimatedTime(leg)"
+                    color="accent"
+                    text-color="white"
+                    :label="`${store.getLegEstimatedTime(leg)} min (runner)`"
+                    size="sm"
+                  />
+                  <q-chip
+                    :color="store.isLegCompleted(leg) ? 'positive' : 'grey'"
+                    text-color="white"
+                    :label="store.isLegCompleted(leg) ? 'Completed' : 'Pending'"
+                    size="sm"
+                  />
+                </div>
+                
+                <!-- Action buttons moved to top right -->
+                <div class="row q-gutter-sm">
+                  <q-btn
+                    flat
+                    round
+                    color="secondary"
+                    icon="edit"
+                    size="sm"
+                    @click="editLeg(leg)"
+                    :disable="store.currentRace?.locked"
+                    title="Edit leg"
+                  />
+                  <q-btn
+                    flat
+                    round
+                    color="negative"
+                    icon="delete"
+                    size="sm"
+                    @click="confirmDeleteLeg(leg)"
+                    :disable="store.currentRace?.locked"
+                    title="Delete leg"
+                  />
+                </div>
               </div>
 
-              <!-- Runner Assignment -->
+              <!-- Assigned Runner Display -->
               <div class="q-mt-md">
-                <q-select
-                  v-model="leg.runnerId"
-                  :options="runnerOptions"
-                  option-label="label"
-                  option-value="value"
-                  :label="store.isLegCompleted(leg) ? 'Assigned Runner (Completed - Cannot Change)' : 'Assigned Runner'"
-                  outlined
-                  dense
-                  emit-value
-                  map-options
-                  :disable="store.isLegCompleted(leg) || store.currentRace?.locked"
-                  :color="store.isLegCompleted(leg) || store.currentRace?.locked ? 'grey' : 'primary'"
-                  @update:model-value="(value) => assignRunnerToLeg(leg.id, value)"
-                />
-                <div v-if="store.isLegCompleted(leg)" class="text-caption text-grey-6 q-mt-xs">
+                <div class="text-caption text-grey-6">Assigned Runner</div>
+                <div class="text-body2 q-mb-xs">
+                  {{ getAssignedRunnerName(leg) || 'No runner assigned' }}
+                </div>
+                <div v-if="store.isLegCompleted(leg)" class="text-caption text-grey-6">
                   Runner assignment is locked for completed legs
                 </div>
               </div>
@@ -143,14 +169,20 @@
               <div v-if="store.isLegCompleted(leg)" class="q-mt-sm">
                 <q-separator class="q-my-sm" />
                 <div class="text-caption">
-                  <div>Runner: {{ getRunnerName(leg.runnerId) }}</div>
-                  <div>Estimated Time: {{ store.getLegBestEstimatedTime(leg) }} min</div>
-                  <div>Actual Duration: {{ store.getLegActualDuration(leg) }} min</div>
-                  <div v-if="getLegPerformanceInfo(leg).hasComparison" 
-                       :class="getLegPerformanceInfo(leg).isFaster ? 'text-positive' : 'text-negative'">
-                    {{ getLegPerformanceInfo(leg).isFaster ? 'Faster' : 'Slower' }} by 
-                    {{ getLegPerformanceInfo(leg).differenceMinutes }} min
-                    ({{ getLegPerformanceInfo(leg).percentageDifference }}%)
+                  <div class="row q-gutter-md">
+                    <div class="col-12 col-sm-6">
+                      <div><strong>Runner:</strong> {{ getRunnerName(leg.runnerId) }}</div>
+                      <div><strong>Estimated Time:</strong> {{ store.getLegBestEstimatedTime(leg) }} min</div>
+                      <div><strong>Actual Duration:</strong> {{ store.getLegActualDuration(leg) }} min</div>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                      <div v-if="getLegPerformanceInfo(leg).hasComparison" 
+                           :class="getLegPerformanceInfo(leg).isFaster ? 'text-positive' : 'text-negative'">
+                        <strong>{{ getLegPerformanceInfo(leg).isFaster ? 'Faster' : 'Slower' }} by 
+                        {{ getLegPerformanceInfo(leg).differenceMinutes }} min</strong><br>
+                        <span class="text-grey-7">({{ getLegPerformanceInfo(leg).percentageDifference }}%)</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -159,14 +191,14 @@
               <div class="q-mt-sm">
                 <q-separator class="q-my-sm" />
                 <div class="text-caption">
-                  <div class="row q-gutter-sm">
-                    <div class="col-6">
+                  <div class="row q-gutter-md">
+                    <div class="col-12 col-sm-6">
                       <strong>Start Time:</strong><br>
                       <span class="text-grey-7">
                         {{ formatTime(store.getLegStartTime(leg)) }}
                       </span>
                     </div>
-                    <div class="col-6">
+                    <div class="col-12 col-sm-6">
                       <strong>End Time:</strong><br>
                       <span class="text-grey-7">
                         {{ formatTime(store.getLegEndTime(leg)) }}
@@ -186,14 +218,14 @@
               <div v-if="store.isLegCompleted(leg)" class="q-mt-sm">
                 <q-separator class="q-my-sm" />
                 <div class="text-caption">
-                  <div class="row q-gutter-sm items-center">
+                  <div class="row q-gutter-md items-center justify-between">
                     <div class="col">
                       <strong>Completion Time:</strong><br>
                       <span class="text-grey-7">
                         {{ formatTime(store.getLegEndTime(leg)) }}
                       </span>
                     </div>
-                    <div class="col-auto">
+                    <div class="row q-gutter-sm">
                       <q-btn
                         flat
                         round
@@ -223,12 +255,12 @@
               <div v-else-if="store.isAuthenticated" class="q-mt-sm">
                 <q-separator class="q-my-sm" />
                 <div class="text-caption">
-                  <div class="row q-gutter-sm items-center">
+                  <div class="row q-gutter-md items-center justify-between">
                     <div class="col">
                       <strong>Status:</strong><br>
                       <span class="text-grey-7">Not completed</span>
                     </div>
-                    <div class="col-auto">
+                    <div>
                       <q-btn
                         flat
                         round
@@ -245,28 +277,7 @@
               </div>
             </q-item-section>
 
-            <q-item-section side>
-              <div class="row q-gutter-sm">
-                <q-btn
-                  flat
-                  round
-                  color="secondary"
-                  icon="edit"
-                  size="sm"
-                  @click="editLeg(leg)"
-                  :disable="store.currentRace?.locked"
-                />
-                <q-btn
-                  flat
-                  round
-                  color="negative"
-                  icon="delete"
-                  size="sm"
-                  @click="confirmDeleteLeg(leg)"
-                  :disable="store.currentRace?.locked"
-                />
-              </div>
-            </q-item-section>
+
           </q-item>
         </q-list>
       </q-card-section>
@@ -274,13 +285,13 @@
 
     <!-- Add/Edit Leg Dialog -->
     <q-dialog v-model="showAddLegDialog" persistent>
-      <q-card style="min-width: 500px">
+      <q-card style="min-width: 300px; max-width: 90vw; width: 500px">
         <q-card-section>
           <div class="text-h6">{{ editingLeg ? 'Edit Leg' : 'Add New Leg' }}</div>
         </q-card-section>
 
         <q-card-section class="q-pt-none">
-          <q-form @submit="handleSaveLeg" class="q-gutter-md">
+          <q-form @submit="handleSaveLeg">
             <q-input
               v-model="legForm.description"
               label="Description (optional)"
@@ -289,9 +300,10 @@
               type="textarea"
               rows="2"
               placeholder="Brief description of the leg route or terrain..."
+              class="q-mb-md"
             />
             
-            <div class="row q-gutter-md">
+            <div class="row">
               <q-input
                 v-model.number="legForm.distance"
                 label="Distance (miles)"
@@ -299,29 +311,47 @@
                 step="0.1"
                 outlined
                 dense
-                class="col"
+                class="col-12 col-md-6 q-pr-md"
                 :rules="[val => val > 0 || 'Distance must be positive']"
               />
               
               <q-select
                 v-model="legForm.difficulty"
-                :options="difficultyOptions"
                 label="Difficulty"
+                :options="difficultyOptions"
                 outlined
                 dense
-                class="col"
+                class="col-12 col-md-6 q-pl-md"
                 :rules="[val => !!val || 'Difficulty is required']"
               />
             </div>
+
+            <RunnerSelector
+              v-model="legForm.runnerId"
+              :runners="currentTeam?.runners || []"
+              label="Assigned Runner"
+              placeholder="Select a runner for this leg..."
+              @runner-selected="onRunnerSelected"
+              class="q-mb-md"
+            />
+            <!-- Debug info -->
+            <div v-if="!currentTeam?.runners?.length" class="text-caption text-grey-6 q-mt-xs">
+              No runners available. Add runners first in the Runners page.
+            </div>
+            <div v-else class="text-caption text-grey-6 q-mt-xs">
+              {{ currentTeam.runners.length }} runner(s) available
+              <br>
+              <small>Team: {{ currentTeam?.name || 'Unknown' }}</small>
+            </div>
             
-            <div class="row q-gutter-md">
+            <div class="row">
               <q-input
                 v-model.number="legForm.estimatedPaceMinutes"
                 label="Estimated Pace (minutes per mile)"
                 type="number"
                 outlined
                 dense
-                class="col"
+                class="col-12 col-md-6 q-pr-md"
                 min="0"
                 max="59"
                 :rules="[val => val >= 0 || 'Minutes must be 0 or greater']"
@@ -333,35 +363,32 @@
                 type="number"
                 outlined
                 dense
-                class="col"
+                class="col-12 col-md-6 q-pl-md"
                 min="0"
                 max="59"
                 :rules="[val => val >= 0 || 'Seconds must be 0-59']"
               />
             </div>
 
-            <q-select
-              v-model="legForm.difficulty"
-              :options="difficultyOptions"
-              label="Difficulty"
-              outlined
-              dense
-              :rules="[val => !!val || 'Difficulty is required']"
-            />
-
-            <div class="row justify-end q-gutter-sm">
-              <q-btn
-                flat
-                label="Cancel"
-                color="primary"
-                @click="closeLegDialog"
-              />
-              <q-btn
-                unelevated
-                :label="editingLeg ? 'Update' : 'Add'"
-                color="primary"
-                type="submit"
-              />
+            <div class="row q-mt-md">
+              <div class="col-12 col-md-6 q-pr-md">
+                <q-btn
+                  flat
+                  label="Cancel"
+                  color="primary"
+                  @click="closeLegDialog"
+                  class="full-width"
+                />
+              </div>
+              <div class="col-12 col-md-6 q-pl-md">
+                <q-btn
+                  unelevated
+                  :label="editingLeg ? 'Update' : 'Add'"
+                  color="primary"
+                  type="submit"
+                  class="full-width"
+                />
+              </div>
             </div>
           </q-form>
         </q-card-section>
@@ -450,6 +477,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+      </div> <!-- Close legs content div -->
   </q-page>
 </template>
 
@@ -458,9 +486,10 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
-import type { Leg, Race } from '../types';
+import type { Leg, Race, Runner } from '../types';
 import DateInput from '../components/DateInput.vue';
 import TimeInput from '../components/TimeInput.vue';
+import RunnerSelector from '../components/RunnerSelector.vue';
 
 const route = useRoute();
 const $q = useQuasar();
@@ -487,6 +516,16 @@ watch(selectedRaceId, async (newValue) => {
 watch(() => store.currentRaceId, (newValue) => {
   selectedRaceId.value = newValue;
 });
+
+// Watch for races being loaded and auto-select the most recent race if none is selected
+watch(() => store.races, (newRaces) => {
+  if (newRaces.length > 0 && !selectedRaceId.value) {
+    const mostRecentRaceId = getUpcomingRaceId();
+    if (mostRecentRaceId) {
+      selectedRaceId.value = mostRecentRaceId;
+    }
+  }
+}, { immediate: true });
 
 // Race options for selector
 const raceOptions = computed(() => store.races);
@@ -516,7 +555,8 @@ const legForm = ref({
   distance: 0,
   difficulty: 'Medium' as 'Easy' | 'Medium' | 'Hard' | 'Very Hard',
   estimatedPaceMinutes: 8,
-  estimatedPaceSeconds: 30
+  estimatedPaceSeconds: 30,
+  runnerId: undefined as string | undefined
 });
 
 const difficultyOptions = ['Easy', 'Medium', 'Hard', 'Very Hard'];
@@ -528,19 +568,7 @@ const sortedLegs = computed(() => {
   return [...team.legs].sort((a, b) => a.order - b.order);
 });
 
-const runnerOptions = computed(() => {
-  const team = currentTeam.value;
-  if (!team) return [];
-  
-  return [
-    { label: 'No Runner Assigned', value: undefined, pace: 'N/A' },
-    ...team.runners.map(runner => ({
-      label: runner.name,
-      value: runner.id,
-      pace: `${runner.estimatedPaceMinutes}:${runner.estimatedPaceSeconds.toString().padStart(2, '0')}`
-    }))
-  ];
-});
+
 
 // Methods
 function getUpcomingRaceId(): string | null {
@@ -607,8 +635,13 @@ function getRunnerName(runnerId?: string): string {
   if (!runnerId) return 'Unassigned';
   const team = currentTeam.value;
   if (!team) return 'Unknown';
+  console.log('Looking for runner:', runnerId, 'in team:', team.runners);
   const runner = team.runners.find(r => r.id === runnerId);
   return runner ? runner.name : 'Unknown';
+}
+
+function getAssignedRunnerName(leg: Leg): string {
+  return getRunnerName(leg.runnerId);
 }
 
 function getLegPerformanceInfo(leg: Leg) {
@@ -630,13 +663,7 @@ function getLegPerformanceInfo(leg: Leg) {
   };
 }
 
-async function assignRunnerToLeg(legId: string, runnerId: string | undefined) {
-  try {
-    await store.assignRunnerToLeg(legId, runnerId);
-  } catch (error) {
-    console.error('Failed to assign runner to leg:', error);
-  }
-}
+
 
 function editLeg(leg: Leg) {
   editingLeg.value = leg;
@@ -645,7 +672,8 @@ function editLeg(leg: Leg) {
     distance: leg.distance,
     difficulty: leg.difficulty,
     estimatedPaceMinutes: leg.estimatedPaceMinutes,
-    estimatedPaceSeconds: leg.estimatedPaceSeconds
+    estimatedPaceSeconds: leg.estimatedPaceSeconds,
+    runnerId: leg.runnerId
   };
   showAddLegDialog.value = true;
 }
@@ -668,10 +696,20 @@ async function handleDeleteLeg() {
 
 async function handleSaveLeg() {
   try {
+    // Create a clean leg object without undefined values
+    const legData = {
+      description: legForm.value.description,
+      distance: legForm.value.distance,
+      difficulty: legForm.value.difficulty,
+      estimatedPaceMinutes: legForm.value.estimatedPaceMinutes,
+      estimatedPaceSeconds: legForm.value.estimatedPaceSeconds,
+      ...(legForm.value.runnerId && { runnerId: legForm.value.runnerId })
+    };
+
     if (editingLeg.value) {
-      await store.updateLeg(editingLeg.value.id, legForm.value);
+      await store.updateLeg(editingLeg.value.id, legData);
     } else {
-      await store.addLeg(legForm.value);
+      await store.addLeg(legData);
     }
 
     closeLegDialog();
@@ -679,6 +717,18 @@ async function handleSaveLeg() {
     console.error('Failed to save leg:', error);
   }
 }
+
+function onRunnerSelected(runner: Runner | undefined) {
+  console.log('Runner selected:', runner);
+  if (runner) {
+    // Auto-populate leg times based on runner's estimated pace
+    console.log('Setting pace:', runner.estimatedPaceMinutes, runner.estimatedPaceSeconds);
+    legForm.value.estimatedPaceMinutes = runner.estimatedPaceMinutes;
+    legForm.value.estimatedPaceSeconds = runner.estimatedPaceSeconds;
+  }
+}
+
+
 
 function closeLegDialog() {
   showAddLegDialog.value = false;
@@ -688,7 +738,8 @@ function closeLegDialog() {
     distance: 0,
     difficulty: 'Medium',
     estimatedPaceMinutes: 8,
-    estimatedPaceSeconds: 30
+    estimatedPaceSeconds: 30,
+    runnerId: undefined
   };
 }
 
@@ -947,5 +998,15 @@ function closeCompletionTimeDialog() {
 .leg-item[dragover] {
   background-color: rgba(0, 0, 0, 0.05);
   border: 2px dashed #1976d2;
+}
+
+/* Responsive padding - hide on mobile, show on desktop */
+@media (max-width: 767px) {
+  .q-pr-md {
+    padding-right: 0 !important;
+  }
+  .q-pl-md {
+    padding-left: 0 !important;
+  }
 }
 </style>
