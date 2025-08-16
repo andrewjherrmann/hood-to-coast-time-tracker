@@ -28,36 +28,30 @@
         </q-card>
       </div>
 
-      <!-- Team Information -->
-      <div class="col-12 col-md-6">
-        <q-card>
-          <q-card-section>
-            <div class="text-h6">Team Information</div>
-            <div class="q-mt-md">
-              <div class="row q-gutter-md">
-                <q-input
-                  v-model="teamForm.name"
-                  label="Team Name"
-                  outlined
-                  dense
-                  class="col-12"
-                />
-                <TimeInput
-                  v-model="teamForm.startTime"
-                  label="Start Time"
-                />
-              </div>
-              <div class="q-mt-md">
-                <q-btn
-                  color="primary"
-                  label="Update Team Info"
-                  @click="saveTeamInfo"
-                />
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
-      </div>
+             <!-- Team Information -->
+       <div class="col-12 col-md-6">
+         <q-card>
+           <q-card-section>
+             <div class="text-h6">Team Information</div>
+             <div class="q-mt-md">
+               <q-input
+                 v-model="teamForm.name"
+                 label="Team Name"
+                 outlined
+                 dense
+                 class="col-12"
+               />
+               <div class="q-mt-md">
+                 <q-btn
+                   color="primary"
+                   label="Update Team Name"
+                   @click="saveTeamInfo"
+                 />
+               </div>
+             </div>
+           </q-card-section>
+         </q-card>
+       </div>
 
       <!-- User Invites -->
       <div class="col-12 col-md-6">
@@ -138,61 +132,29 @@
         </q-card>
       </div>
 
-      <!-- Data Management -->
-      <div class="col-12 col-md-6">
-        <q-card>
-          <q-card-section>
-            <div class="text-h6">Data Management</div>
-            <div class="text-caption text-grey-6 q-mb-md">
-              Manage your team's data
-            </div>
-            <div class="q-gutter-md">
-              <q-btn
-                color="warning"
-                icon="download"
-                label="Export Data"
-                @click="exportData"
-                class="full-width"
-              />
-              <q-btn
-                color="negative"
-                icon="delete_forever"
-                label="Clear All Data"
-                @click="confirmClearData"
-                class="full-width"
-              />
-            </div>
-          </q-card-section>
-        </q-card>
-      </div>
+             <!-- Data Management -->
+       <div class="col-12 col-md-6">
+         <q-card>
+           <q-card-section>
+             <div class="text-h6">Data Management</div>
+             <div class="text-caption text-grey-6 q-mb-md">
+               Export your team's data
+             </div>
+             <div class="q-gutter-md">
+               <q-btn
+                 color="warning"
+                 icon="download"
+                 label="Export Data"
+                 @click="exportData"
+                 class="full-width"
+               />
+             </div>
+           </q-card-section>
+         </q-card>
+       </div>
     </div>
 
-    <!-- Clear Data Confirmation Dialog -->
-    <q-dialog v-model="showClearDataDialog">
-      <q-card>
-        <q-card-section class="row items-center">
-          <q-avatar icon="warning" color="negative" text-color="white" />
-          <span class="q-ml-sm">
-            <strong>Warning:</strong> This will permanently delete all your team's data including legs, times, and progress. This action cannot be undone.
-          </span>
-        </q-card-section>
-
-        <q-card-section>
-          <p>Are you absolutely sure you want to clear all data?</p>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="primary" v-close-popup />
-          <q-btn
-            flat
-            label="Clear All Data"
-            color="negative"
-            @click="clearAllData"
-            v-close-popup
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    
   </q-page>
 </template>
 
@@ -200,7 +162,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
-import TimeInput from '../components/TimeInput.vue';
+
 
 const $q = useQuasar();
 const store = useHoodToCoastStore();
@@ -210,11 +172,8 @@ const currentTeam = computed(() => store.currentTeam);
 const isMockMode = computed(() => store.isMockMode);
 
 // Local state
-const showClearDataDialog = ref(false);
-
 const teamForm = ref({
-  name: '',
-  startTime: ''
+  name: ''
 });
 
 const passwordForm = ref({
@@ -253,13 +212,6 @@ const availableUsers = computed(() => {
 onMounted(() => {
   if (currentTeam.value) {
     teamForm.value.name = currentTeam.value.name;
-    // Format the start time to AM/PM format for display
-    const startTime = currentTeam.value.startTime;
-    const hours = startTime.getHours();
-    const minutes = startTime.getMinutes();
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-    teamForm.value.startTime = `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   }
 });
 
@@ -272,59 +224,9 @@ function saveTeamInfo() {
   if (currentTeam.value) {
     currentTeam.value.name = teamForm.value.name;
     
-    // Parse the AM/PM time format
-    const timeString = teamForm.value.startTime;
-    const parts = timeString.split(' ');
-    if (parts.length !== 2) {
-      $q.notify({
-        type: 'negative',
-        message: 'Invalid time format'
-      });
-      return;
-    }
-    
-    const [timePart, period] = parts;
-    if (!timePart || !period) {
-      $q.notify({
-        type: 'negative',
-        message: 'Invalid time format'
-      });
-      return;
-    }
-    
-    const timeComponents = timePart.split(':');
-    if (timeComponents.length !== 2) {
-      $q.notify({
-        type: 'negative',
-        message: 'Invalid time format'
-      });
-      return;
-    }
-    
-    const [hours, minutes] = timeComponents;
-    if (!hours || !minutes) {
-      $q.notify({
-        type: 'negative',
-        message: 'Invalid time format'
-      });
-      return;
-    }
-    
-    let hour = parseInt(hours);
-    if (period === 'PM' && hour !== 12) {
-      hour += 12;
-    } else if (period === 'AM' && hour === 12) {
-      hour = 0;
-    }
-    
-    // Create new date with updated time
-    const newStartTime = new Date(currentTeam.value.startTime);
-    newStartTime.setHours(hour, parseInt(minutes), 0, 0);
-    currentTeam.value.startTime = newStartTime;
-    
     $q.notify({
       type: 'positive',
-      message: 'Team information updated successfully'
+      message: 'Team name updated successfully'
     });
   }
 }
@@ -369,16 +271,5 @@ function exportData() {
   });
 }
 
-function confirmClearData() {
-  showClearDataDialog.value = true;
-}
 
-function clearAllData() {
-  store.clearAllData();
-  
-  $q.notify({
-    type: 'positive',
-    message: 'All data cleared successfully'
-  });
-}
 </script>

@@ -324,9 +324,13 @@ const currentTeam = computed(() => store.currentTeam);
 const selectedRaceId = ref(store.currentRaceId || null);
 
 // Watch for changes and update store
-watch(selectedRaceId, (newValue) => {
+watch(selectedRaceId, async (newValue) => {
   if (newValue) {
-    store.setCurrentRace(newValue);
+    try {
+      await store.setCurrentRace(newValue);
+    } catch (error) {
+      console.error('Failed to set current race:', error);
+    }
   }
 });
 
@@ -387,10 +391,14 @@ function getSelectedRaceDate(): Date | null {
   return race ? new Date(race.date) : null;
 }
 
-function onRaceChange(race: Race) {
+async function onRaceChange(race: Race) {
   if (race && race.id) {
     const raceId = race.id;
-    store.setCurrentRace(raceId);
+    try {
+      await store.setCurrentRace(raceId);
+    } catch (error) {
+      console.error('Failed to set current race:', error);
+    }
   }
 }
 
@@ -398,7 +406,7 @@ function formatDate(date: Date): string {
   return store.formatDateTime(new Date(date), false);
 }
 
-function createNewRace() {
+async function createNewRace() {
   if (!newRaceForm.name || !newRaceForm.date || !newRaceForm.teamName || !newRaceForm.startTime) {
     $q.notify({
       type: 'negative',
@@ -457,20 +465,20 @@ function createNewRace() {
   const startTime = new Date(raceDate);
   startTime.setHours(hour, parseInt(minutes), 0, 0);
 
-  const newRace = store.createRace({
-    name: newRaceForm.name,
-    date: raceDate,
-    team: {
-      id: `team-${Date.now()}`,
-      name: newRaceForm.teamName,
-      startTime,
-      legs: [],
-      
-      runners: []
-    }
-  });
+  try {
+    await store.createRace({
+      name: newRaceForm.name,
+      date: raceDate,
+      team: {
+        id: `team-${Date.now()}`,
+        name: newRaceForm.teamName,
+        startTime,
+        legs: [],
+        
+        runners: []
+      }
+    });
 
-  if (newRace) {
     // Reset form
     Object.assign(newRaceForm, {
       name: '',
@@ -483,6 +491,12 @@ function createNewRace() {
       type: 'positive',
       message: 'Race created successfully!'
     });
+  } catch (error) {
+    console.error('Failed to create race:', error);
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to create race. Please try again.'
+    });
   }
 }
 
@@ -493,15 +507,23 @@ function duplicateRace(race: Race) {
   showDuplicateDialog.value = true;
 }
 
-function lockRace(race: Race) {
-  store.lockRace(race.id);
-  $q.notify({
-    type: 'positive',
-    message: 'Race locked successfully!'
-  });
+async function lockRace(race: Race) {
+  try {
+    await store.lockRace(race.id);
+    $q.notify({
+      type: 'positive',
+      message: 'Race locked successfully!'
+    });
+  } catch (error) {
+    console.error('Failed to lock race:', error);
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to lock race. Please try again.'
+    });
+  }
 }
 
-function confirmDuplicateRace() {
+async function confirmDuplicateRace() {
   if (!raceToDuplicate.value || !duplicateForm.name || !duplicateForm.date) {
     $q.notify({
       type: 'negative',
@@ -520,21 +542,27 @@ function confirmDuplicateRace() {
     return;
   }
   
-  const month = parseInt(dateParts[0]) - 1; // Month is 0-indexed
-  const day = parseInt(dateParts[1]);
-  const year = parseInt(dateParts[2]);
+  const month = parseInt(dateParts[0] || '0') - 1; // Month is 0-indexed
+  const day = parseInt(dateParts[1] || '0');
+  const year = parseInt(dateParts[2] || '0');
   const newDate = new Date(year, month, day);
   
-  const duplicatedRace = store.duplicateRace(
-    raceToDuplicate.value.id,
-    duplicateForm.name,
-    newDate
-  );
+  try {
+    await store.duplicateRace(
+      raceToDuplicate.value.id,
+      duplicateForm.name,
+      newDate
+    );
 
-  if (duplicatedRace) {
     $q.notify({
       type: 'positive',
       message: 'Race duplicated successfully!'
+    });
+  } catch (error) {
+    console.error('Failed to duplicate race:', error);
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to duplicate race. Please try again.'
     });
   }
 }
@@ -560,7 +588,7 @@ function editRace(race: Race) {
   showEditDialog.value = true;
 }
 
-function confirmEditRace() {
+async function confirmEditRace() {
   if (!raceToEdit.value || !editForm.name || !editForm.date || !editForm.teamName || !editForm.startTime) {
     $q.notify({
       type: 'negative',
@@ -579,9 +607,9 @@ function confirmEditRace() {
     return;
   }
   
-  const month = parseInt(dateParts[0]) - 1; // Month is 0-indexed
-  const day = parseInt(dateParts[1]);
-  const year = parseInt(dateParts[2]);
+  const month = parseInt(dateParts[0] || '0') - 1; // Month is 0-indexed
+  const day = parseInt(dateParts[1] || '0');
+  const year = parseInt(dateParts[2] || '0');
   const raceDate = new Date(year, month, day);
   
   // Parse time from h:mm AM/PM format
@@ -595,7 +623,25 @@ function confirmEditRace() {
   }
   
   const [timePart, period] = timeParts;
-  const [hours, minutes] = timePart.split(':').map(Number);
+  if (!timePart || !period) {
+    $q.notify({
+      type: 'negative',
+      message: 'Invalid time format. Please use h:mm AM/PM format.'
+    });
+    return;
+  }
+  
+  const timeComponents = timePart.split(':');
+  if (timeComponents.length !== 2) {
+    $q.notify({
+      type: 'negative',
+      message: 'Invalid time format. Please use h:mm AM/PM format.'
+    });
+    return;
+  }
+  
+  const hours = parseInt(timeComponents[0] || '0');
+  const minutes = parseInt(timeComponents[1] || '0');
   
   if (isNaN(hours) || isNaN(minutes)) {
     $q.notify({
@@ -615,20 +661,28 @@ function confirmEditRace() {
   const startTime = new Date(raceDate);
   startTime.setHours(hour, minutes, 0, 0);
 
-  store.updateRace(raceToEdit.value.id, {
-    name: editForm.name,
-    date: raceDate,
-    team: {
-      ...raceToEdit.value.team,
-      name: editForm.teamName,
-      startTime
-    }
-  });
+  try {
+    await store.updateRace(raceToEdit.value.id, {
+      name: editForm.name,
+      date: raceDate,
+      team: {
+        ...raceToEdit.value.team,
+        name: editForm.teamName,
+        startTime
+      }
+    });
 
-  $q.notify({
-    type: 'positive',
-    message: 'Race updated successfully!'
-  });
+    $q.notify({
+      type: 'positive',
+      message: 'Race updated successfully!'
+    });
+  } catch (error) {
+    console.error('Failed to update race:', error);
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to update race. Please try again.'
+    });
+  }
 }
 
 function confirmDeleteRace(race: Race) {
@@ -636,13 +690,21 @@ function confirmDeleteRace(race: Race) {
   showDeleteDialog.value = true;
 }
 
-function confirmDeleteRaceAction() {
+async function confirmDeleteRaceAction() {
   if (raceToDelete.value) {
-    store.deleteRace(raceToDelete.value.id);
-    $q.notify({
-      type: 'positive',
-      message: 'Race deleted successfully!'
-    });
+    try {
+      await store.deleteRace(raceToDelete.value.id);
+      $q.notify({
+        type: 'positive',
+        message: 'Race deleted successfully!'
+      });
+    } catch (error) {
+      console.error('Failed to delete race:', error);
+      $q.notify({
+        type: 'negative',
+        message: 'Failed to delete race. Please try again.'
+      });
+    }
   }
 }
 

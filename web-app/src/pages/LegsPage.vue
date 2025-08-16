@@ -473,9 +473,13 @@ const currentTeam = computed(() => store.currentTeam);
 const selectedRaceId = ref(store.currentRaceId || getUpcomingRaceId());
 
 // Watch for changes and update store
-watch(selectedRaceId, (newValue) => {
+watch(selectedRaceId, async (newValue) => {
   if (newValue) {
-    store.setCurrentRace(newValue);
+    try {
+      await store.setCurrentRace(newValue);
+    } catch (error) {
+      console.error('Failed to set current race:', error);
+    }
   }
 });
 
@@ -573,10 +577,14 @@ function formatDate(date: Date | null): string {
   return store.formatDateTime(new Date(date), false);
 }
 
-function onRaceChange(race: Race) {
+async function onRaceChange(race: Race) {
   if (race && race.id) {
     const raceId = race.id;
-    store.setCurrentRace(raceId);
+    try {
+      await store.setCurrentRace(raceId);
+    } catch (error) {
+      console.error('Failed to set current race:', error);
+    }
   }
 }
 
@@ -622,8 +630,12 @@ function getLegPerformanceInfo(leg: Leg) {
   };
 }
 
-function assignRunnerToLeg(legId: string, runnerId: string | undefined) {
-  store.assignRunnerToLeg(legId, runnerId);
+async function assignRunnerToLeg(legId: string, runnerId: string | undefined) {
+  try {
+    await store.assignRunnerToLeg(legId, runnerId);
+  } catch (error) {
+    console.error('Failed to assign runner to leg:', error);
+  }
 }
 
 function editLeg(leg: Leg) {
@@ -643,21 +655,29 @@ function confirmDeleteLeg(leg: Leg) {
   showDeleteDialog.value = true;
 }
 
-function handleDeleteLeg() {
+async function handleDeleteLeg() {
   if (legToDelete.value) {
-    store.deleteLeg(legToDelete.value.id);
-    legToDelete.value = null;
+    try {
+      await store.deleteLeg(legToDelete.value.id);
+      legToDelete.value = null;
+    } catch (error) {
+      console.error('Failed to delete leg:', error);
+    }
   }
 }
 
-function handleSaveLeg() {
-  if (editingLeg.value) {
-    store.updateLeg(editingLeg.value.id, legForm.value);
-  } else {
-    store.addLeg(legForm.value);
+async function handleSaveLeg() {
+  try {
+    if (editingLeg.value) {
+      await store.updateLeg(editingLeg.value.id, legForm.value);
+    } else {
+      await store.addLeg(legForm.value);
+    }
+
+    closeLegDialog();
+  } catch (error) {
+    console.error('Failed to save leg:', error);
   }
-  
-  closeLegDialog();
 }
 
 function closeLegDialog() {
@@ -680,7 +700,7 @@ function onDragStart(event: DragEvent, leg: Leg) {
   }
 }
 
-function onDrop(event: DragEvent, targetLeg: Leg) {
+async function onDrop(event: DragEvent, targetLeg: Leg) {
   event.preventDefault();
   
   if (!draggedLeg.value || draggedLeg.value.id === targetLeg.id) {
@@ -701,7 +721,11 @@ function onDrop(event: DragEvent, targetLeg: Leg) {
   currentOrder.splice(targetIndex, 0, draggedLeg.value.id);
   
   // Update the order in the store
-  store.reorderLegs(currentOrder);
+  try {
+    await store.reorderLegs(currentOrder);
+  } catch (error) {
+    console.error('Failed to reorder legs:', error);
+  }
   
   // Reset dragged leg
   draggedLeg.value = null;
@@ -761,7 +785,7 @@ function confirmRemoveCompletionTime(leg: Leg) {
   showRemoveCompletionDialog.value = true;
 }
 
-function handleSaveCompletionTime() {
+async function handleSaveCompletionTime() {
   if (editingCompletionTime.value && completionTimeForm.value.date && completionTimeForm.value.time) {
     // Parse the M/D/YYYY date format
     const dateParts = completionTimeForm.value.date.split('/');
@@ -815,7 +839,19 @@ function handleSaveCompletionTime() {
     
     if (editingCompletionTime.value.timeEntry) {
       // Update existing completion time
-      store.updateLegCompletionTime(editingCompletionTime.value.id, completionDateTime);
+      try {
+        await store.updateLegCompletionTime(editingCompletionTime.value.id, completionDateTime);
+      } catch (error) {
+        console.error('Failed to update completion time:', error);
+        $q.notify({
+          message: 'Failed to update completion time. Please try again.',
+          color: 'negative',
+          icon: 'error',
+          position: 'top-right',
+          timeout: 3000,
+        });
+        return;
+      }
       $q.notify({
         message: 'Completion time updated successfully!',
         color: 'positive',
@@ -825,7 +861,19 @@ function handleSaveCompletionTime() {
       });
     } else {
       // Record new completion time
-      store.recordLegCompletionTime(editingCompletionTime.value.id, completionDateTime);
+      try {
+        await store.recordLegCompletionTime(editingCompletionTime.value.id, completionDateTime);
+      } catch (error) {
+        console.error('Failed to record completion time:', error);
+        $q.notify({
+          message: 'Failed to record completion time. Please try again.',
+          color: 'negative',
+          icon: 'error',
+          position: 'top-right',
+          timeout: 3000,
+        });
+        return;
+      }
       $q.notify({
         message: 'Completion time recorded successfully!',
         color: 'positive',
@@ -839,18 +887,29 @@ function handleSaveCompletionTime() {
   }
 }
 
-function handleRemoveCompletionTime() {
+async function handleRemoveCompletionTime() {
   if (legToRemoveCompletion.value) {
-    store.removeLegCompletionTime(legToRemoveCompletion.value.id);
-    legToRemoveCompletion.value = null;
-    
-    $q.notify({
-      message: 'Completion time removed successfully!',
-      color: 'positive',
-      icon: 'check_circle',
-      position: 'top-right',
-      timeout: 2000,
-    });
+    try {
+      await store.removeLegCompletionTime(legToRemoveCompletion.value.id);
+      legToRemoveCompletion.value = null;
+      
+      $q.notify({
+        message: 'Completion time removed successfully!',
+        color: 'positive',
+        icon: 'check_circle',
+        position: 'top-right',
+        timeout: 2000,
+      });
+    } catch (error) {
+      console.error('Failed to remove completion time:', error);
+      $q.notify({
+        message: 'Failed to remove completion time. Please try again.',
+        color: 'negative',
+        icon: 'error',
+        position: 'top-right',
+        timeout: 3000,
+      });
+    }
   }
 }
 

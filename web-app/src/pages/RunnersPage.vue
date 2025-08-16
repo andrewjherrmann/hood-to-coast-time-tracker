@@ -279,9 +279,13 @@ const currentTeam = computed(() => store.currentTeam);
 const selectedRaceId = ref(store.currentRaceId || null);
 
 // Watch for changes and update store
-watch(selectedRaceId, (newValue) => {
+watch(selectedRaceId, async (newValue) => {
   if (newValue) {
-    store.setCurrentRace(newValue);
+    try {
+      await store.setCurrentRace(newValue);
+    } catch (error) {
+      console.error('Failed to set current race:', error);
+    }
   }
 });
 
@@ -334,10 +338,14 @@ function formatDate(date: Date | null): string {
   return store.formatDateTime(new Date(date), false);
 }
 
-function onRaceChange(race: Race) {
+async function onRaceChange(race: Race) {
   if (race && race.id) {
     const raceId = race.id;
-    store.setCurrentRace(raceId);
+    try {
+      await store.setCurrentRace(raceId);
+    } catch (error) {
+      console.error('Failed to set current race:', error);
+    }
   }
 }
 
@@ -364,21 +372,29 @@ function confirmDeleteRunner(runner: Runner) {
   showDeleteDialog.value = true;
 }
 
-function handleDeleteRunner() {
+async function handleDeleteRunner() {
   if (runnerToDelete.value) {
-    store.deleteRunner(runnerToDelete.value.id);
-    runnerToDelete.value = null;
+    try {
+      await store.deleteRunner(runnerToDelete.value.id);
+      runnerToDelete.value = null;
+    } catch (error) {
+      console.error('Failed to delete runner:', error);
+    }
   }
 }
 
-function handleSaveRunner() {
-  if (editingRunner.value) {
-    store.updateRunner(editingRunner.value.id, runnerForm.value);
-  } else {
-    store.addRunner(runnerForm.value);
+async function handleSaveRunner() {
+  try {
+    if (editingRunner.value) {
+      await store.updateRunner(editingRunner.value.id, runnerForm.value);
+    } else {
+      await store.addRunner(runnerForm.value);
+    }
+
+    closeRunnerDialog();
+  } catch (error) {
+    console.error('Failed to save runner:', error);
   }
-  
-  closeRunnerDialog();
 }
 
 function closeRunnerDialog() {

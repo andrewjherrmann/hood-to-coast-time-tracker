@@ -438,42 +438,7 @@
       </q-card-section>
     </q-card>
 
-    <!-- Quick Actions -->
-    <q-card>
-      <q-card-section>
-        <div class="text-h6 q-mb-md">Quick Actions</div>
-        <div v-if="store.isAuthenticated" class="row q-gutter-md">
-          <div class="col-12 col-md-6">
-            <q-btn
-              color="primary"
-              icon="edit"
-              label="Edit Current Leg"
-              class="full-width"
-              @click="editCurrentLeg"
-              :disable="!currentLeg"
-            />
-          </div>
-          <div class="col-12 col-md-6">
-            <q-btn
-              color="secondary"
-              icon="timer"
-              label="Record Time"
-              class="full-width"
-              @click="recordTime"
-              :disable="!currentLeg"
-            />
-          </div>
-        </div>
-        <div v-else class="text-center q-pa-md">
-          <q-chip
-            color="orange"
-            text-color="white"
-            label="Sign in to access quick actions"
-            size="md"
-          />
-        </div>
-      </q-card-section>
-    </q-card>
+
 
 
   </q-page>
@@ -481,14 +446,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
+
 import { useQuasar } from 'quasar';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
 import type { Race, Leg } from '../types';
 import DateInput from '../components/DateInput.vue';
 import TimeInput from '../components/TimeInput.vue';
 
-const router = useRouter();
+
 const store = useHoodToCoastStore();
 const $q = useQuasar(); // Initialize Quasar
 
@@ -496,9 +461,13 @@ const $q = useQuasar(); // Initialize Quasar
 const selectedRaceId = ref(store.currentRaceId || getUpcomingRaceId());
 
 // Watch for changes and update store
-watch(selectedRaceId, (newValue) => {
+watch(selectedRaceId, async (newValue) => {
   if (newValue) {
-    store.setCurrentRace(newValue);
+    try {
+      await store.setCurrentRace(newValue);
+    } catch (error) {
+      console.error('Failed to set current race:', error);
+    }
   }
 });
 
@@ -567,10 +536,14 @@ function formatDate(date: Date | null): string {
   return store.formatDateTime(new Date(date), false);
 }
 
-function onRaceChange(race: Race) {
+async function onRaceChange(race: Race) {
   if (race && race.id) {
     const raceId = race.id;
-    store.setCurrentRace(raceId);
+    try {
+      await store.setCurrentRace(raceId);
+    } catch (error) {
+      console.error('Failed to set current race:', error);
+    }
   }
 }
 
@@ -624,25 +597,9 @@ function formatCurrentTimeWithDate(): string {
   });
 }
 
-function editCurrentLeg() {
-  if (currentLeg.value) {
-    void router.push({
-      path: '/legs',
-      query: { edit: currentLeg.value.id }
-    });
-  }
-}
 
-function recordTime() {
-  if (currentLeg.value) {
-    void router.push({
-      path: '/times',
-      query: { leg: currentLeg.value.id }
-    });
-  }
-}
 
-function recordCompletionTime() {
+async function recordCompletionTime() {
   if (currentLeg.value && completionDate.value && completionTime.value && currentTeam.value) {
     // Parse the M/D/YYYY date format
     const dateParts = completionDate.value.split('/');
@@ -688,7 +645,16 @@ function recordCompletionTime() {
     const dateTimeString = `${formattedDate}T${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
     const completionDateTime = new Date(dateTimeString);
     
-    store.recordLegCompletionTime(currentLeg.value.id, completionDateTime);
+    try {
+      await store.recordLegCompletionTime(currentLeg.value.id, completionDateTime);
+    } catch (error) {
+      console.error('Failed to record leg completion time:', error);
+      $q.notify({
+        type: 'negative',
+        message: 'Failed to record completion time. Please try again.'
+      });
+      return;
+    }
     
     // Reset form
     completionDate.value = null;
