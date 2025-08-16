@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Favicon Emoji</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1976d2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        .emoji-container {
+            font-size: 128px;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 200px;
+            height: 200px;
+        }
+        .instructions {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 350px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        <h3>🏃‍♂️ Favicon Creation Steps:</h3>
+        <ol>
+            <li><strong>Right-click</strong> on the emoji below</li>
+            <li>Select <strong>"Save image as..."</strong></li>
+            <li>Save as <strong>"running-emoji.png"</strong></li>
+            <li>Go to <a href="https://favicon.io/favicon-converter/" target="_blank" style="color: #4CAF50;">favicon.io</a></li>
+            <li>Upload your saved image</li>
+            <li>Download the generated favicon files</li>
+            <li>Replace <code>web-app/public/favicon.ico</code></li>
+        </ol>
+    </div>
+    
+    <div class="emoji-container">
+        🏃‍♂️
+    </div>
+</body>
+</html>
