@@ -1,12 +1,12 @@
 <template>
   <q-page class="q-pa-md">
     <!-- Header -->
-    <div class="row q-mb-lg q-pr-md">
+    <div class="row q-mb-lg">
       <!-- Team Info and Race Selection -->
       <div class="col-12">
-        <div class="row">
+        <div class="row justify-between">
           <!-- Team Info -->
-          <div class="col-12 col-md-4 q-pr-md">
+          <div class="col-12 col-md-4 q-mb-md">
             <h4 class="q-my-none">{{ currentTeam?.name || 'Team Dashboard' }}</h4>
             <p class="q-mt-sm q-mb-none text-grey-7">
               Start Time: {{ formatStartTime(currentTeam?.startTime) }}
@@ -14,7 +14,7 @@
           </div>
           
           <!-- Race Selection -->
-          <div class="col-12 col-md-8 q-pl-md">
+          <div class="col-12 col-md-8 q-mb-md">
             <q-select
               v-model="selectedRaceId"
               :options="raceOptions"
@@ -55,7 +55,7 @@
 
     <!-- Progress Overview -->
     <div class="row q-mb-lg">
-            <div class="col-12 col-md-3 q-pr-md q-mb-md">
+            <div class="col-12 col-md-3 q-mb-md q-pr-md">
         <q-card class="text-center">
           <q-card-section>
             <div class="text-h4 text-primary">{{ totalDistance }}</div>
@@ -63,7 +63,7 @@
           </q-card-section>
         </q-card>
       </div>
-      <div class="col-12 col-md-3 q-px-md q-mb-md">
+      <div class="col-12 col-md-3 q-mb-md q-px-md">
         <q-card class="text-center">
           <q-card-section>
             <div class="text-h4 text-positive">{{ completedLegs.length }}</div>
@@ -71,7 +71,7 @@
           </q-card-section>
         </q-card>
       </div>
-      <div class="col-12 col-md-3 q-px-md q-mb-md">
+      <div class="col-12 col-md-3 q-mb-md q-px-md">
         <q-card class="text-center">
           <q-card-section>
             <div class="text-h4 text-info">{{ remainingLegs.length }}</div>
@@ -79,7 +79,7 @@
           </q-card-section>
         </q-card>
       </div>
-      <div class="col-12 col-md-3 q-pl-md q-mb-md">
+      <div class="col-12 col-md-3 q-mb-md q-pl-md">
         <q-card class="text-center">
           <q-card-section>
             <div class="text-h4 text-secondary">{{ progressPercentage.toFixed(1) }}%</div>
@@ -825,3 +825,19 @@ function getTotalActualDuration(): number {
 
 
 </script>
+
+<style scoped>
+/* Responsive padding - hide on mobile, show on desktop */
+@media (max-width: 767px) {
+  .q-pr-md {
+    padding-right: 0 !important;
+  }
+  .q-pl-md {
+    padding-left: 0 !important;
+  }
+  .q-px-md {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+</style>
