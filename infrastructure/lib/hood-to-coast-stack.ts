@@ -191,27 +191,6 @@ export class HoodToCoastStack extends cdk.Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
-    const teamsTable = new dynamodb.Table(this, 'TeamsTable', {
-      tableName: `${props.environment}-htc-teams`,
-      partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: RemovalPolicy.DESTROY,
-    });
-
-    const runnersTable = new dynamodb.Table(this, 'RunnersTable', {
-      tableName: `${props.environment}-htc-runners`,
-      partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: RemovalPolicy.DESTROY,
-    });
-
-    const legsTable = new dynamodb.Table(this, 'LegsTable', {
-      tableName: `${props.environment}-htc-legs`,
-      partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: RemovalPolicy.DESTROY,
-    });
-
     // API Key
     const apiKey = new apigateway.ApiKey(this, 'ApiKey', {
       apiKeyName: `${props.environment}-htc-api-key`,
@@ -373,7 +352,7 @@ export class HoodToCoastStack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, 'DynamoDBTables', {
-      value: `Races: ${racesTable.tableName}, Teams: ${teamsTable.tableName}, Runners: ${runnersTable.tableName}, Legs: ${legsTable.tableName}`,
+      value: `Races: ${racesTable.tableName}`,
       description: 'DynamoDB Table Names',
     });
   }
