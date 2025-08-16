@@ -82,6 +82,12 @@ cdk.out/
 
 # Keep yarn.lock (important for reproducible builds)
 !yarn.lock
-infrastructure/config/local.js
-infrastructure/cdk.context.json
-web-app/.env.production
+config/local.js
+cdk.context.json
+ .env.production
+
+# Test files that may contain sensitive data
+test-api.json
+lambda-test.json
+simple-test.json
+*.test.json

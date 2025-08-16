@@ -1,6 +1,6 @@
 # Complete Deployment Script for Hood to Coast Time Tracker
 # This script deploys both the CDK infrastructure and the web-app
-# Simplified version - static hosting only, no Lambda functions
+# Simplified backend approach with static API endpoints
 
 param(
     [Parameter(Mandatory=$true)]
@@ -42,7 +42,7 @@ Write-ColorOutput "Region: $Region" $Yellow
 Write-ColorOutput "Infrastructure Only: $InfrastructureOnly" $Yellow
 Write-ColorOutput "Web App Only: $WebAppOnly" $Yellow
 Write-ColorOutput "Skip Build: $SkipBuild" $Yellow
-Write-ColorOutput "Mode: Static Hosting Only (Mock Mode)" $Cyan
+Write-ColorOutput "Mode: Simplified Backend API with Static Endpoints" $Cyan
 
 # Check if we're in the right directory
 if (-not (Test-Path "cdk.json")) {
@@ -53,7 +53,7 @@ if (-not (Test-Path "cdk.json")) {
 # Step 1: Deploy Infrastructure (unless WebAppOnly is specified)
 if (-not $WebAppOnly) {
     Write-ColorOutput "`n=== Step 1: Deploying CDK Infrastructure ===" $Green
-    Write-ColorOutput "Creating S3 bucket and CloudFront distribution..." $Blue
+    Write-ColorOutput "Creating S3 bucket, CloudFront distribution, API Gateway, and DynamoDB..." $Blue
     
     # Build the CDK project
     Write-ColorOutput "Building CDK project..." $Blue
@@ -72,7 +72,7 @@ if (-not $WebAppOnly) {
     }
     
     Write-ColorOutput "✅ Infrastructure deployed successfully!" $Green
-    Write-ColorOutput "Created: S3 bucket, CloudFront distribution" $Green
+    Write-ColorOutput "Created: S3 bucket, CloudFront distribution, API Gateway, DynamoDB tables" $Green
     
     if ($InfrastructureOnly) {
         Write-ColorOutput "Infrastructure only mode - deployment complete" $Yellow
@@ -168,7 +168,7 @@ Write-ColorOutput "Environment: $Environment" $Yellow
 Write-ColorOutput "Region: $Region" $Yellow
 Write-ColorOutput "Infrastructure Deployed: $(-not $WebAppOnly)" $Green
 Write-ColorOutput "Web App Deployed: $(-not $InfrastructureOnly)" $Green
-Write-ColorOutput "Mode: Static hosting with mock data" $Cyan
+Write-ColorOutput "Mode: Simplified backend API with static endpoints" $Cyan
 
 if (-not $InfrastructureOnly -and -not $WebAppOnly) {
     Write-ColorOutput "`n🎉 Complete deployment finished successfully!" $Green

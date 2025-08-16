@@ -1,10 +1,10 @@
 # Hood to Coast Time Tracker - Deployment Guide
 
-This guide explains how to deploy the Hood to Coast Time Tracker web application using AWS CDK, with support for mock mode deployment.
+This guide explains how to deploy the Hood to Coast Time Tracker web application using AWS CDK, with a simplified backend API approach.
 
-## Current Status: Mock Mode Only
+## Current Status: Simplified Backend API
 
-**Important**: This deployment is currently configured for **mock mode only**. The application will run entirely in the browser with local mock data. No backend services (Lambda functions, API Gateway, DynamoDB) are deployed.
+**Important**: This deployment currently uses a **simplified backend approach** with static API endpoints using API Gateway MockIntegration. This provides a working API foundation that can be incrementally enhanced with Lambda functions later.
 
 ## Prerequisites
 
@@ -18,25 +18,35 @@ This guide explains how to deploy the Hood to Coast Time Tracker web application
 ### Infrastructure (CDK Stack)
 - **S3 Bucket**: Private bucket for hosting static files
 - **CloudFront Distribution**: Global CDN for fast content delivery
-- **Route53 DNS** (optional): Custom domain support if configured
+- **Route53 DNS**: Custom domain support for both frontend and API
+- **API Gateway**: RESTful API with API key authentication
+- **DynamoDB Tables**: Database tables for races, teams, runners, and legs
+- **ACM Certificates**: SSL certificates for custom domains
 
 ### Web Application
 - **Static Files**: Built Vue.js application
-- **Environment Configuration**: Auto-generated for mock mode
-- **Mock Data**: All data is local browser storage
+- **Environment Configuration**: Auto-generated for production mode
+- **API Integration**: Ready to connect to backend API
+
+### Backend API
+- **Static Endpoints**: GET/POST endpoints that return predefined responses
+- **API Key Authentication**: Secure access control
+- **CORS Support**: Configured for frontend integration
+- **Custom Domain**: Dedicated API subdomain
 
 ## Environment Configuration
 
-The application currently supports one deployment mode:
+The application supports two deployment modes:
 
-- **Mock Mode**: All data is local mock data, no backend required
+- **Mock Mode**: All data is local mock data (frontend only)
+- **API Mode**: Frontend connects to backend API endpoints
 
-### Mock Mode Features
+### API Mode Features
 
-- **Data Source**: Local mock data from `mock-data.ts`
-- **API Calls**: Disabled, uses in-memory data
-- **Authentication**: Simulated with localStorage
-- **Persistence**: Browser localStorage only
+- **Data Source**: Backend API endpoints (currently static responses)
+- **API Calls**: Enabled with API key authentication
+- **Authentication**: API key-based access control
+- **Persistence**: DynamoDB tables (ready for Lambda integration)
 
 ## Deployment Options
 
@@ -49,12 +59,12 @@ Deploys both infrastructure and web-app:
 .\deploy-complete.ps1 -Environment development
 ```
 
-### 2. Infrastructure Only
+### 2. Backend Only
 
-Deploys only the CDK stack (S3, CloudFront):
+Deploys only the backend infrastructure (API Gateway, DynamoDB):
 
 ```powershell
-.\deploy-complete.ps1 -Environment development -InfrastructureOnly
+.\deploy-backend-simple.ps1 -Environment development
 ```
 
 ### 3. Web App Only
@@ -77,8 +87,8 @@ Useful for re-deploying without rebuilding:
 
 ### Step 1: Infrastructure Deployment
 
-1. **CDK Stack**: Creates S3 bucket and CloudFront distribution
-2. **Environment Generation**: Creates `.env.production` file with mock mode configuration
+1. **CDK Stack**: Creates all AWS resources (S3, CloudFront, API Gateway, DynamoDB)
+2. **Environment Generation**: Creates `.env.production` file with API configuration
 3. **Outputs**: Provides URLs and resource names for web-app deployment
 
 ### Step 2: Web App Deployment
@@ -93,135 +103,70 @@ Useful for re-deploying without rebuilding:
 The deployment automatically generates these environment variables:
 
 ```bash
-# Mock Mode Configuration
-VITE_MOCK_MODE=true
+# API Configuration
+VITE_MOCK_MODE=false
+VITE_API_URL=https://htcapi.dev.your-domain.com
+VITE_API_KEY_REQUIRED=true
 
 # AWS Configuration
 VITE_AWS_REGION=us-east-1
 VITE_ENVIRONMENT=development
 
 # Domain Configuration
-VITE_USE_CUSTOM_DOMAIN=false
-
-# Website URL
-VITE_WEBSITE_URL=https://cloudfront-domain.cloudfront.net
-
-# Mock Mode Note
-# Running in MOCK MODE - all data is local mock data
+VITE_USE_CUSTOM_DOMAIN=true
+VITE_DOMAIN_NAME=your-domain.com
+VITE_SUBDOMAIN=your-subdomain
 ```
 
-## Manual Deployment Steps
+## API Endpoints
 
-If you prefer to deploy manually:
+### Available Endpoints
 
-### 1. Deploy Infrastructure
+- **GET /races** - Returns static race data
+- **POST /races** - Returns mock success response
+- **GET /teams** - Returns static team data (when implemented)
+- **POST /teams** - Returns mock success response (when implemented)
+- **GET /runners** - Returns static runner data (when implemented)
+- **POST /runners** - Returns mock success response (when implemented)
+- **GET /legs** - Returns static leg data (when implemented)
+- **POST /legs** - Returns mock success response (when implemented)
 
-```bash
-cd infrastructure
-yarn build
-yarn cdk deploy
+### Authentication
+
+All API endpoints require an API key in the `X-Api-Key` header.
+
+## Next Steps
+
+### Immediate Improvements
+- [ ] Add Lambda integration to one endpoint (e.g., GET /races)
+- [ ] Implement real DynamoDB operations
+- [ ] Add more endpoints with Lambda integration
+
+### Future Enhancements
+- [ ] Full CRUD operations for all resources
+- [ ] User authentication with Cognito
+- [ ] Real-time updates
+- [ ] Advanced querying and filtering
+
+## Testing
+
+Test your API endpoints using the provided test script:
+
+```powershell
+.\test-api-simple.ps1 -ApiUrl "https://htcapi.dev.your-domain.com" -ApiKey "your-api-key"
 ```
-
-### 2. Create Environment File
-
-Copy the `EnvironmentFileContent` from CDK outputs to `web-app/.env.production`
-
-### 3. Build Web App
-
-```bash
-cd web-app
-yarn build
-```
-
-### 4. Deploy to S3
-
-```bash
-# Get bucket name from CDK outputs
-aws s3 sync dist/spa/* s3://your-bucket-name --delete
-```
-
-## Architecture Overview
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Web Browser  │───▶│   CloudFront    │───▶│   S3 Bucket    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌─────────────────┐
-                       │   Static Files  │
-                       │   (Mock Mode)   │
-                       └─────────────────┘
-```
-
-## Future Backend Integration
-
-When you're ready to add backend functionality, the infrastructure can be extended with:
-
-- **Lambda Functions**: For API endpoints
-- **API Gateway**: For REST API management
-- **DynamoDB**: For data persistence
-- **Cognito**: For user authentication
-
-The current mock mode setup provides a solid foundation for testing the frontend before adding backend complexity.
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **CDK Not Bootstrapped**
-   ```bash
-   cdk bootstrap aws://ACCOUNT-NUMBER/REGION
-   ```
+1. **403 Forbidden**: Check API key validity and usage plan association
+2. **500 Internal Server Error**: Check API Gateway integration configuration
+3. **Domain Not Found**: Verify Route53 DNS configuration and propagation
 
-2. **Permission Errors**
-   - Ensure AWS CLI has appropriate permissions
-   - Check IAM roles and policies
+### Debugging Steps
 
-3. **Build Failures**
-   - Verify Node.js version (18+)
-   - Check yarn dependencies
-   - Review TypeScript compilation errors
-
-4. **Deployment Failures**
-   - Check CloudFormation events in AWS Console
-   - Verify resource limits and quotas
-   - Review CDK diff: `yarn cdk diff`
-
-### Useful Commands
-
-```bash
-# Check CDK status
-yarn cdk list
-
-# View stack details
-yarn cdk describe
-
-# Destroy stack
-yarn cdk destroy
-
-# View CloudFormation events
-aws cloudformation describe-stack-events --stack-name HoodToCoastStack
-```
-
-## Security Considerations
-
-- **S3 Bucket**: Private with CloudFront access only
-- **CloudFront**: HTTPS only, security headers configured
-- **No Backend**: No Lambda functions or databases to secure
-
-## Cost Optimization
-
-- **Development**: Use `cdk destroy` when not actively developing
-- **Production**: Monitor CloudWatch metrics and set up billing alerts
-- **S3**: Lifecycle policies for old versions
-- **CloudFront**: Use appropriate cache policies
-- **No Lambda**: No compute costs during idle periods
-
-## Next Steps
-
-1. **Test Mock Mode**: Deploy and test the application with mock data
-2. **Iterate Frontend**: Make UI/UX improvements based on testing
-3. **Plan Backend**: Design API endpoints and data models
-4. **Add Backend**: Extend infrastructure with Lambda functions and databases
-5. **Migrate Data**: Move from mock mode to real backend integration
+1. Check CloudFormation stack outputs
+2. Verify API Gateway method configuration
+3. Test API key validity
+4. Check CloudWatch logs (when Lambda functions are added)
