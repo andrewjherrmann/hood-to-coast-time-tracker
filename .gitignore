@@ -91,3 +91,8 @@ test-api.json
 lambda-test.json
 simple-test.json
 *.test.json
+
+# Log files and directories containing sensitive data
+log_files/
+*.csv
+infrastructure/scripts/*.ps1

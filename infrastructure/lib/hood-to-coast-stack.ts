@@ -24,6 +24,11 @@ export interface HoodToCoastStackProps extends cdk.StackProps {
   generateEnvFile: boolean;
 }
 
+// Helper function to get context values with defaults
+function getContextValue(app: cdk.App, key: string, defaultValue?: string): string | undefined {
+  return app.node.tryGetContext(key) || defaultValue;
+}
+
 export class HoodToCoastStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: HoodToCoastStackProps) {
     super(scope, id, props);
@@ -116,6 +121,10 @@ export class HoodToCoastStack extends cdk.Stack {
         this.createBackendInfrastructure(props, hostedZone);
       }
     } else {
+      // Create backend infrastructure even without custom domain
+      // We need this for the API to work
+      this.createBackendInfrastructure(props, undefined);
+      
       // Simple CloudFront setup without custom domain
       distribution = new cloudfront.Distribution(this, 'Distribution', {
         defaultBehavior: {
@@ -173,7 +182,7 @@ export class HoodToCoastStack extends cdk.Stack {
     }
   }
 
-  private createBackendInfrastructure(props: HoodToCoastStackProps, hostedZone: route53.IHostedZone) {
+  private createBackendInfrastructure(props: HoodToCoastStackProps, hostedZone?: route53.IHostedZone) {
     // DynamoDB Tables
     const racesTable = new dynamodb.Table(this, 'RacesTable', {
       tableName: `${props.environment}-htc-races`,
@@ -216,7 +225,7 @@ export class HoodToCoastStack extends cdk.Stack {
       description: 'API Key ID for Hood to Coast Time Tracker',
     });
 
-    // Lambda function for races endpoint (static data for now)
+    // Lambda function for races endpoint with DynamoDB integration
     const racesFunction = new lambda.Function(this, 'RacesFunction', {
       functionName: `${props.environment}-htc-races`,
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -227,8 +236,12 @@ export class HoodToCoastStack extends cdk.Stack {
       logRetention: logs.RetentionDays.ONE_WEEK,
       environment: {
         ENVIRONMENT: props.environment,
+        RACES_TABLE_NAME: racesTable.tableName,
       },
     });
+
+    // Grant DynamoDB read/write permissions to the Lambda function
+    racesTable.grantReadWriteData(racesFunction);
 
     // API Gateway
     const api = new apigateway.RestApi(this, 'HoodToCoastApi', {
@@ -236,7 +249,10 @@ export class HoodToCoastStack extends cdk.Stack {
       description: 'Hood to Coast Time Tracker API',
       defaultCorsPreflightOptions: {
         allowOrigins: [
-          `https://${props.subdomain}.${props.domainName}`,
+          // Use custom domain if available, otherwise use CloudFront domain
+          ...(props.useCustomDomain && props.subdomain && props.domainName 
+            ? [`https://${props.subdomain}.${props.domainName}`]
+            : ['https://d8rt0db3kvzd3.cloudfront.net']), // Default CloudFront domain
           'http://localhost:3000' // For local development
         ],
         allowMethods: apigateway.Cors.ALL_METHODS,
@@ -250,37 +266,39 @@ export class HoodToCoastStack extends cdk.Stack {
       },
     });
 
-    // Custom domain for API
-    const apiDomainName = props.environment === 'development' 
-      ? `htcapi.dev.${props.domainName}` 
-      : `htcapi.${props.domainName}`;
+    // Custom domain for API (only if hostedZone is available)
+    if (hostedZone && props.useCustomDomain && props.domainName) {
+      const apiDomainName = props.environment === 'development' 
+        ? `htcapi.dev.${props.domainName}` 
+        : `htcapi.${props.domainName}`;
 
-    const apiCertificate = new acm.Certificate(this, 'ApiCertificate', {
-      domainName: apiDomainName,
-      validation: acm.CertificateValidation.fromDns(hostedZone),
-    });
+      const apiCertificate = new acm.Certificate(this, 'ApiCertificate', {
+        domainName: apiDomainName,
+        validation: acm.CertificateValidation.fromDns(hostedZone),
+      });
 
-    const apiDomain = new apigateway.DomainName(this, 'ApiDomain', {
-      domainName: apiDomainName,
-      certificate: apiCertificate,
-      securityPolicy: apigateway.SecurityPolicy.TLS_1_2,
-    });
+      const apiDomain = new apigateway.DomainName(this, 'ApiDomain', {
+        domainName: apiDomainName,
+        certificate: apiCertificate,
+        securityPolicy: apigateway.SecurityPolicy.TLS_1_2,
+      });
 
-    // Associate the domain with the API
-    new apigateway.BasePathMapping(this, 'ApiBasePathMapping', {
-      domainName: apiDomain,
-      restApi: api,
-      basePath: '',
-    });
+      // Associate the domain with the API
+      new apigateway.BasePathMapping(this, 'ApiBasePathMapping', {
+        domainName: apiDomain,
+        restApi: api,
+        basePath: '',
+      });
 
-    // Route53 DNS for API
-    new route53.ARecord(this, 'ApiAliasRecord', {
-      zone: hostedZone,
-      recordName: props.environment === 'development' ? 'htcapi.dev' : 'htcapi',
-      target: route53.RecordTarget.fromAlias(
-        new targets.ApiGatewayDomain(apiDomain)
-      ),
-    });
+      // Route53 DNS for API
+      new route53.ARecord(this, 'ApiAliasRecord', {
+        zone: hostedZone,
+        recordName: props.environment === 'development' ? 'htcapi.dev' : 'htcapi',
+        target: route53.RecordTarget.fromAlias(
+          new targets.ApiGatewayDomain(apiDomain)
+        ),
+      });
+    }
 
     // API Gateway usage plan
     const usagePlan = new apigateway.UsagePlan(this, 'UsagePlan', {
@@ -310,50 +328,42 @@ export class HoodToCoastStack extends cdk.Stack {
       retainDeployments: false,
     });
 
-    // SIMPLE STATIC ENDPOINTS (with Lambda integration for GET /races)
+    // FULL CRUD ENDPOINTS for races
     const racesResource = api.root.addResource('races');
     
-    // GET endpoint now uses Lambda integration (returns static data)
+    // GET /races - List all races
     racesResource.addMethod('GET', new apigateway.LambdaIntegration(racesFunction), {
       apiKeyRequired: true,
     });
 
-    // Simple POST endpoint that returns success
-    racesResource.addMethod('POST', new apigateway.MockIntegration({
-      requestTemplates: {
-        'application/json': '{"statusCode": 201}'
-      },
-      integrationResponses: [{
-        statusCode: '201',
-        responseTemplates: {
-          'application/json': JSON.stringify({
-            message: 'Race created successfully (mock response)',
-            id: 'race_' + Date.now()
-          })
-        },
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': "'*'",
-          'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Api-Key'",
-          'method.response.header.Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'"
-        }
-      }],
-      passthroughBehavior: apigateway.PassthroughBehavior.NEVER,
-      contentHandling: apigateway.ContentHandling.CONVERT_TO_TEXT,
-    }), {
+    // POST /races - Create new race
+    racesResource.addMethod('POST', new apigateway.LambdaIntegration(racesFunction), {
       apiKeyRequired: true,
-      methodResponses: [{
-        statusCode: '201',
-        responseParameters: {
-          'method.response.header.Access-Control-Allow-Origin': true,
-          'method.response.header.Access-Control-Allow-Headers': true,
-          'method.response.header.Access-Control-Allow-Methods': true
-        }
-      }]
+    });
+
+    // Individual race resource for PUT/DELETE operations
+    const raceResource = racesResource.addResource('{id}');
+    
+    // GET /races/{id} - Get specific race
+    raceResource.addMethod('GET', new apigateway.LambdaIntegration(racesFunction), {
+      apiKeyRequired: true,
+    });
+    
+    // PUT /races/{id} - Update race
+    raceResource.addMethod('PUT', new apigateway.LambdaIntegration(racesFunction), {
+      apiKeyRequired: true,
+    });
+
+    // DELETE /races/{id} - Delete race
+    raceResource.addMethod('DELETE', new apigateway.LambdaIntegration(racesFunction), {
+      apiKeyRequired: true,
     });
 
     // Add outputs
     new cdk.CfnOutput(this, 'ApiUrl', {
-      value: `https://${apiDomainName}`,
+      value: hostedZone && props.useCustomDomain && props.domainName
+        ? `https://${props.environment === 'development' ? 'htcapi.dev.' : 'htcapi.'}${props.domainName}`
+        : `https://${api.restApiId}.execute-api.${props.region}.amazonaws.com/${props.environment}/`,
       description: 'API Gateway URL',
     });
 
