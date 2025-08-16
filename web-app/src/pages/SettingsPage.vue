@@ -42,26 +42,10 @@
                   dense
                   class="col-12"
                 />
-                <q-input
+                <TimeInput
                   v-model="teamForm.startTime"
                   label="Start Time"
-                  outlined
-                  dense
-                  class="col-12"
-                  readonly
-                >
-                  <template v-slot:append>
-                    <q-icon name="access_time" class="cursor-pointer">
-                      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                        <q-time
-                          v-model="teamForm.startTime"
-                          mask="hh:mm A"
-                          format24h
-                        />
-                      </q-popup-proxy>
-                    </q-icon>
-                  </template>
-                </q-input>
+                />
               </div>
               <div class="q-mt-md">
                 <q-btn
@@ -216,6 +200,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
+import TimeInput from '../components/TimeInput.vue';
 
 const $q = useQuasar();
 const store = useHoodToCoastStore();

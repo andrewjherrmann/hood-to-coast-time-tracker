@@ -157,46 +157,15 @@
               :rules="[val => !!val || 'Race name is required']"
             />
 
-            <q-input
+            <DateInput
               v-model="newRaceForm.date"
               label="Race Date"
-              outlined
-              dense
-              readonly
-              :rules="[val => !!val || 'Race date is required']"
-            >
-              <template v-slot:append>
-                <q-icon name="event" class="cursor-pointer">
-                  <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                    <q-date
-                      v-model="newRaceForm.date"
-                      mask="YYYY-MM-DD"
-                    />
-                  </q-popup-proxy>
-                </q-icon>
-              </template>
-            </q-input>
+            />
 
-            <q-input
+            <TimeInput
               v-model="newRaceForm.startTime"
               label="Start Time"
-              outlined
-              dense
-              readonly
-              :rules="[val => !!val || 'Start time is required']"
-            >
-              <template v-slot:append>
-                <q-icon name="access_time" class="cursor-pointer">
-                  <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                    <q-time
-                      v-model="newRaceForm.startTime"
-                      mask="hh:mm A"
-                      format24h
-                    />
-                  </q-popup-proxy>
-                </q-icon>
-              </template>
-            </q-input>
+            />
 
             <q-input
               v-model="newRaceForm.teamName"
@@ -241,25 +210,10 @@
               :rules="[val => !!val || 'Race name is required']"
             />
 
-            <q-input
+            <DateInput
               v-model="duplicateForm.date"
               label="New Race Date"
-              outlined
-              dense
-              readonly
-              :rules="[val => !!val || 'Race date is required']"
-            >
-              <template v-slot:append>
-                <q-icon name="event" class="cursor-pointer">
-                  <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                    <q-date
-                      v-model="duplicateForm.date"
-                      mask="YYYY-MM-DD"
-                    />
-                  </q-popup-proxy>
-                </q-icon>
-              </template>
-            </q-input>
+            />
           </q-form>
         </q-card-section>
 
@@ -293,13 +247,9 @@
               :rules="[val => !!val || 'Race name is required']"
             />
 
-            <q-input
+            <DateInput
               v-model="editForm.date"
               label="Race Date"
-              outlined
-              dense
-              type="date"
-              :rules="[val => !!val || 'Race date is required']"
             />
 
             <q-input
@@ -310,13 +260,9 @@
               :rules="[val => !!val || 'Team name is required']"
             />
 
-            <q-input
+            <TimeInput
               v-model="editForm.startTime"
               label="Start Time"
-              outlined
-              dense
-              type="time"
-              :rules="[val => !!val || 'Start time is required']"
             />
           </q-form>
         </q-card-section>
@@ -365,6 +311,8 @@ import { ref, reactive, computed, watch } from 'vue';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
 import type { Race } from '../types';
 import { useQuasar } from 'quasar';
+import DateInput from '../components/DateInput.vue';
+import TimeInput from '../components/TimeInput.vue';
 
 const store = useHoodToCoastStore();
 const $q = useQuasar();
@@ -562,7 +510,21 @@ function confirmDuplicateRace() {
     return;
   }
 
-  const newDate = new Date(duplicateForm.date);
+  // Parse date from M/D/YYYY format
+  const dateParts = duplicateForm.date.split('/');
+  if (dateParts.length !== 3) {
+    $q.notify({
+      type: 'negative',
+      message: 'Invalid date format. Please use M/D/YYYY format.'
+    });
+    return;
+  }
+  
+  const month = parseInt(dateParts[0]) - 1; // Month is 0-indexed
+  const day = parseInt(dateParts[1]);
+  const year = parseInt(dateParts[2]);
+  const newDate = new Date(year, month, day);
+  
   const duplicatedRace = store.duplicateRace(
     raceToDuplicate.value.id,
     duplicateForm.name,
@@ -580,12 +542,20 @@ function confirmDuplicateRace() {
 function editRace(race: Race) {
   raceToEdit.value = race;
   editForm.name = race.name;
-  const dateParts = race.date.toISOString().split('T');
-  editForm.date = dateParts[0] || '';
+  
+  // Format date as M/D/YYYY for DateInput component
+  const raceDate = new Date(race.date);
+  editForm.date = `${raceDate.getMonth() + 1}/${raceDate.getDate()}/${raceDate.getFullYear()}`;
+  
   editForm.teamName = race.team.name;
   
+  // Format time as h:mm AM/PM for TimeInput component
   const startTime = new Date(race.team.startTime);
-  editForm.startTime = `${startTime.getHours().toString().padStart(2, '0')}:${startTime.getMinutes().toString().padStart(2, '0')}`;
+  const hours = startTime.getHours();
+  const minutes = startTime.getMinutes();
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours === 0 ? 12 : (hours > 12 ? hours - 12 : hours);
+  editForm.startTime = `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   
   showEditDialog.value = true;
 }
@@ -599,20 +569,51 @@ function confirmEditRace() {
     return;
   }
 
-  const raceDate = new Date(editForm.date);
-  const timeParts = editForm.startTime.split(':');
-  if (timeParts.length !== 2) {
+  // Parse date from M/D/YYYY format
+  const dateParts = editForm.date.split('/');
+  if (dateParts.length !== 3) {
     $q.notify({
       type: 'negative',
-      message: 'Invalid time format'
+      message: 'Invalid date format. Please use M/D/YYYY format.'
     });
     return;
   }
   
-  const hours = parseInt(timeParts[0] || '0');
-  const minutes = parseInt(timeParts[1] || '0');
+  const month = parseInt(dateParts[0]) - 1; // Month is 0-indexed
+  const day = parseInt(dateParts[1]);
+  const year = parseInt(dateParts[2]);
+  const raceDate = new Date(year, month, day);
+  
+  // Parse time from h:mm AM/PM format
+  const timeParts = editForm.startTime.split(' ');
+  if (timeParts.length !== 2) {
+    $q.notify({
+      type: 'negative',
+      message: 'Invalid time format. Please use h:mm AM/PM format.'
+    });
+    return;
+  }
+  
+  const [timePart, period] = timeParts;
+  const [hours, minutes] = timePart.split(':').map(Number);
+  
+  if (isNaN(hours) || isNaN(minutes)) {
+    $q.notify({
+      type: 'negative',
+      message: 'Invalid time format. Please use h:mm AM/PM format.'
+    });
+    return;
+  }
+  
+  let hour = hours;
+  if (period === 'PM' && hour !== 12) {
+    hour += 12;
+  } else if (period === 'AM' && hour === 12) {
+    hour = 0;
+  }
+  
   const startTime = new Date(raceDate);
-  startTime.setHours(hours, minutes, 0, 0);
+  startTime.setHours(hour, minutes, 0, 0);
 
   store.updateRace(raceToEdit.value.id, {
     name: editForm.name,

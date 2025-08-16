@@ -220,13 +220,15 @@
                <div class="q-mb-md">
                  <div class="row q-gutter-md">
                    <div class="col">
-                     <CompletionDateInput
+                     <DateInput
                        v-model="completionDate"
+                       label="Completion Date"
                      />
                    </div>
                    <div class="col">
-                     <CompletionTimeInput
+                     <TimeInput
                        v-model="completionTime"
+                       label="Completion Time"
                      />
                    </div>
                  </div>
@@ -483,8 +485,8 @@ import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
 import type { Race, Leg } from '../types';
-import CompletionDateInput from '../components/CompletionDateInput.vue';
-import CompletionTimeInput from '../components/CompletionTimeInput.vue';
+import DateInput from '../components/DateInput.vue';
+import TimeInput from '../components/TimeInput.vue';
 
 const router = useRouter();
 const store = useHoodToCoastStore();

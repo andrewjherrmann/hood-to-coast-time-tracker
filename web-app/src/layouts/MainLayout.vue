@@ -15,6 +15,22 @@
           Hood to Coast Tracker
         </q-toolbar-title>
 
+        <!-- Debug Panel (Development Only) -->
+        <div v-if="isDevelopment" class="row items-center q-gutter-sm">
+          <q-btn
+            flat
+            dense
+            round
+            icon="bug_report"
+            size="sm"
+            color="grey-6"
+            @click="showDebugPanel = !showDebugPanel"
+            :class="{ 'debug-active': showDebugPanel }"
+          >
+            <q-tooltip>Debug Panel</q-tooltip>
+          </q-btn>
+        </div>
+
         <!-- Authentication Section -->
         <div class="row items-center q-gutter-sm">
           <div v-if="!isAuthenticated" class="row q-gutter-xs">
@@ -84,6 +100,9 @@
       v-model="showAuthDialog"
     />
 
+    <!-- Debug Panel -->
+    <DebugPanel v-if="showDebugPanel" @close="showDebugPanel = false" />
+
     <!-- Profile Dialog -->
     <q-dialog v-model="showProfileDialog">
       <q-card style="min-width: 400px;">
@@ -119,6 +138,7 @@ import { useQuasar } from 'quasar';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
 import EssentialLink from '../components/EssentialLink.vue';
 import AuthDialog from '../components/AuthDialog.vue';
+import DebugPanel from '../components/DebugPanel.vue';
 
 const $q = useQuasar();
 const store = useHoodToCoastStore();
@@ -127,10 +147,15 @@ const store = useHoodToCoastStore();
 const leftDrawerOpen = ref(false);
 const showAuthDialog = ref(false);
 const showProfileDialog = ref(false);
+const showDebugPanel = ref(false);
 
 // Store computed properties
 const isAuthenticated = computed(() => store.isAuthenticated);
 const currentUser = computed(() => store.currentUser);
+const isDevelopment = computed(() => 
+  process.env.NODE_ENV === 'development' || 
+  import.meta.env.VITE_ENVIRONMENT === 'development'
+);
 
 // Methods
 function toggleLeftDrawer() {
@@ -187,3 +212,10 @@ const visibleLinks = computed(() => {
   }
 });
 </script>
+
+<style scoped>
+.debug-active {
+  background-color: #ff6b35 !important;
+  color: white !important;
+}
+</style>

@@ -1,7 +1,7 @@
 <template>
   <q-input
     :model-value="modelValue"
-    label="Completion Date (M/D/YYYY)"
+    :label="defaultLabel"
     outlined
     dense
     class="full-width"
@@ -28,17 +28,22 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue';
+import { computed } from 'vue';
+// defineProps and defineEmits are compiler macros, no import needed
 
 interface Props {
   modelValue: string | null;
+  label?: string;
 }
 
 interface Emits {
   (e: 'update:modelValue', value: string | null): void;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
+
+// Default label if none provided
+const defaultLabel = computed(() => props.label || 'Date (M/D/YYYY)');
 defineEmits<Emits>();
 
 // Validation function for date format M/D/YYYY

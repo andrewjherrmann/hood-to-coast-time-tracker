@@ -1,7 +1,7 @@
 <template>
   <q-input
     :model-value="modelValue"
-    label="Completion Time (h:mm AM/PM)"
+    :label="defaultLabel"
     outlined
     dense
     class="full-width"
@@ -29,17 +29,22 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue';
+import { computed } from 'vue';
+// defineProps and defineEmits are compiler macros, no import needed
 
 interface Props {
   modelValue: string | null;
+  label?: string;
 }
 
 interface Emits {
   (e: 'update:modelValue', value: string | null): void;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
+
+// Default label if none provided
+const defaultLabel = computed(() => props.label || 'Time (h:mm AM/PM)');
 defineEmits<Emits>();
 
 // Validation function for time format h:mm AM/PM

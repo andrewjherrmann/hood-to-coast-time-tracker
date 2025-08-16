@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { mockRaces } from './mock-data';
-import { useMockData } from '../config/environment';
+import { useMockData, getMockModeStatus, environment } from '../config/environment';
+import { racesApi, isApiAvailable } from '../services/api';
 import type { 
   Runner, 
   Leg, 
@@ -62,34 +63,20 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
 
   const activeRace = computed(() => races.value.find(race => race.isActive) || null);
 
-          // Find the most recent race (latest date, whether past or future)
-        const nextUpcomingRace = computed(() => {
-          if (races.value.length === 0) return null;
-          
-          // Sort races by date descending and return the first one (most recent)
-          const sortedRaces = [...races.value].sort((a, b) => 
-            new Date(b.date).getTime() - new Date(a.date).getTime()
-          );
-          
-          return sortedRaces[0];
-        });
+  // Find the most recent race (latest date, whether past or future)
+  const nextUpcomingRace = computed(() => {
+    if (races.value.length === 0) return null;
+    
+    // Sort races by date descending and return the first one (most recent)
+    const sortedRaces = [...races.value].sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+    
+    return sortedRaces[0];
+  });
 
-
-          // Initialize with mock data
-        if (isMockMode.value) {
-          races.value = [...mockRaces];
-          
-          // Automatically set the most recent race as active
-          const mostRecent = nextUpcomingRace.value;
-          
-          if (mostRecent) {
-            mostRecent.isActive = true;
-            currentRaceId.value = mostRecent.id;
-          } else {
-            // Fallback to first race if no races exist
-            currentRaceId.value = races.value[0]?.id || null;
-          }
-        }
+  // Initialize with mock data first (will be updated later if API is available)
+  races.value = [...mockRaces];
 
   // Initialize authentication state from localStorage
   const savedUser = loadAuthSession();
@@ -489,7 +476,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   });
 
   // Actions
-  function addRunner(runner: Omit<Runner, 'id'>) {
+  async function addRunner(runner: Omit<Runner, 'id'>) {
     if (!currentTeam.value) return;
     
     const newRunner: Runner = {
@@ -498,18 +485,36 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     };
     
     currentTeam.value.runners.push(newRunner);
+    
+    // Save the updated race to API
+    if (currentRace.value) {
+      try {
+        await saveRaceToApi(currentRace.value);
+      } catch (error) {
+        console.error('Failed to save runner addition to API:', error);
+      }
+    }
   }
 
-  function updateRunner(id: string, updates: Partial<Omit<Runner, 'id'>>) {
+  async function updateRunner(id: string, updates: Partial<Omit<Runner, 'id'>>) {
     if (!currentTeam.value) return;
     
     const runner = currentTeam.value.runners.find(r => r.id === id);
     if (runner) {
       Object.assign(runner, updates);
+      
+      // Save the updated race to API
+      if (currentRace.value) {
+        try {
+          await saveRaceToApi(currentRace.value);
+        } catch (error) {
+          console.error('Failed to save runner update to API:', error);
+        }
+      }
     }
   }
 
-  function deleteRunner(id: string) {
+  async function deleteRunner(id: string) {
     if (!currentTeam.value) return;
     
     // Remove runner from legs first
@@ -532,9 +537,18 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     
     // Remove runner
     currentTeam.value.runners = currentTeam.value.runners.filter(r => r.id !== id);
+    
+    // Save the updated race to API
+    if (currentRace.value) {
+      try {
+        await saveRaceToApi(currentRace.value);
+      } catch (error) {
+        console.error('Failed to save runner deletion to API:', error);
+      }
+    }
   }
 
-  function assignRunnerToLeg(legId: string, runnerId: string | undefined) {
+  async function assignRunnerToLeg(legId: string, runnerId: string | undefined) {
     if (!currentTeam.value) return;
     
     const leg = currentTeam.value.legs.find(l => l.id === legId);
@@ -553,10 +567,19 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
       } else {
         delete leg.runnerId;
       }
+      
+      // Save the updated race to API
+      if (currentRace.value) {
+        try {
+          await saveRaceToApi(currentRace.value);
+        } catch (error) {
+          console.error('Failed to save runner assignment to API:', error);
+        }
+      }
     }
   }
 
-  function reorderLegs(newOrder: string[]) {
+  async function reorderLegs(newOrder: string[]) {
     if (!currentTeam.value) return;
     
     // Create a map of leg ID to new order
@@ -574,9 +597,18 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     
     // Sort legs by new order
     currentTeam.value.legs.sort((a, b) => a.order - b.order);
+    
+    // Save the updated race to API
+    if (currentRace.value) {
+      try {
+        await saveRaceToApi(currentRace.value);
+      } catch (error) {
+        console.error('Failed to save leg reordering to API:', error);
+      }
+    }
   }
 
-  function completeLeg(legId: string, actualTime: number, runnerId: string) {
+  async function completeLeg(legId: string, actualTime: number, runnerId: string) {
     if (!currentTeam.value) return;
     
     const leg = currentTeam.value.legs.find(l => l.id === legId);
@@ -588,10 +620,19 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
         timestamp: new Date(actualTime),
         notes: ''
       };
+      
+      // Save the updated race to API
+      if (currentRace.value) {
+        try {
+          await saveRaceToApi(currentRace.value);
+        } catch (error) {
+          console.error('Failed to save leg completion to API:', error);
+        }
+      }
     }
   }
 
-  function updateLeg(id: string, updates: Partial<Omit<Leg, 'id' | 'order'>>) {
+  async function updateLeg(id: string, updates: Partial<Omit<Leg, 'id' | 'order'>>) {
     if (!currentTeam.value) return;
     
     const leg = currentTeam.value.legs.find(l => l.id === id);
@@ -599,10 +640,19 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
       Object.assign(leg, updates);
       // Note: We no longer update estimated time automatically
       // The leg's pace determines the estimated time
+      
+      // Save the updated race to API
+      if (currentRace.value) {
+        try {
+          await saveRaceToApi(currentRace.value);
+        } catch (error) {
+          console.error('Failed to save leg update to API:', error);
+        }
+      }
     }
   }
 
-  function deleteLeg(id: string) {
+  async function deleteLeg(id: string) {
     if (!currentTeam.value) return;
     
     // Remove leg (time entry is embedded, so it goes with the leg)
@@ -612,9 +662,18 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     currentTeam.value.legs.forEach((leg, index) => {
       leg.order = index + 1;
     });
+    
+    // Save the updated race to API
+    if (currentRace.value) {
+      try {
+        await saveRaceToApi(currentRace.value);
+      } catch (error) {
+        console.error('Failed to save leg deletion to API:', error);
+      }
+    }
   }
 
-  function addLeg(leg: Omit<Leg, 'id' | 'order'>) {
+  async function addLeg(leg: Omit<Leg, 'id' | 'order'>) {
     if (!currentTeam.value) return;
     
     const newLeg: Leg = {
@@ -624,18 +683,36 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     };
     
     currentTeam.value.legs.push(newLeg);
+    
+    // Save the updated race to API
+    if (currentRace.value) {
+      try {
+        await saveRaceToApi(currentRace.value);
+      } catch (error) {
+        console.error('Failed to save leg addition to API:', error);
+      }
+    }
   }
 
   // Note: Time management is now handled directly on legs via recordLegCompletionTime
   // and the timeEntry property on each leg
 
-  function clearAllData() {
+  async function clearAllData() {
     if (!currentTeam.value) return;
     
     currentTeam.value.legs.forEach(leg => {
       delete leg.timeEntry;
       delete leg.runnerId;
     });
+    
+    // Save the updated race to API
+    if (currentRace.value) {
+      try {
+        await saveRaceToApi(currentRace.value);
+      } catch (error) {
+        console.error('Failed to save cleared data to API:', error);
+      }
+    }
   }
 
   function toggleMockMode() {
@@ -787,7 +864,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
   }
 
   // Race management functions
-  function createRace(raceData: Omit<Race, 'id' | 'isActive' | 'locked'>) {
+  async function createRace(raceData: Omit<Race, 'id' | 'isActive' | 'locked'>) {
     const newRace: Race = {
       ...raceData,
       id: `race-${Date.now()}`,
@@ -795,11 +872,26 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
       locked: false
     };
     
+    // Add to local state first for immediate UI update
     races.value.push(newRace);
-    return newRace;
+    
+    // Save to API if available
+    try {
+      const savedRace = await saveRaceToApi(newRace);
+      // Update the race with the API response (in case ID changed)
+      const index = races.value.findIndex(r => r.id === newRace.id);
+      if (index !== -1) {
+        races.value[index] = savedRace;
+      }
+      return savedRace;
+    } catch (error) {
+      console.error('Failed to save race to API:', error);
+      // Return the local race even if API save failed
+      return newRace;
+    }
   }
 
-  function duplicateRace(raceId: string, newName: string, newDate: Date) {
+  async function duplicateRace(raceId: string, newName: string, newDate: Date) {
     const sourceRace = races.value.find(r => r.id === raceId);
     if (!sourceRace) return null;
 
@@ -825,27 +917,77 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
       }
     };
 
+    // Add to local state first for immediate UI update
     races.value.push(duplicatedRace);
-    return duplicatedRace;
+    
+    // Save to API if available
+    try {
+      const savedRace = await saveRaceToApi(duplicatedRace);
+      // Update the race with the API response (in case ID changed)
+      const index = races.value.findIndex(r => r.id === duplicatedRace.id);
+      if (index !== -1) {
+        races.value[index] = savedRace;
+      }
+      return savedRace;
+    } catch (error) {
+      console.error('Failed to save duplicated race to API:', error);
+      // Return the local race even if API save failed
+      return duplicatedRace;
+    }
   }
 
-  function setCurrentRace(raceId: string) {
+  async function setCurrentRace(raceId: string) {
     const race = races.value.find(r => r.id === raceId);
     if (race) {
       currentRaceId.value = raceId;
+      
+      // Save the current race selection to API if it's a real race (not mock)
+      if (!race.id.startsWith('race-')) {
+        try {
+          await saveRaceToApi(race);
+        } catch (error) {
+          console.error('Failed to save current race selection to API:', error);
+        }
+      }
     }
   }
 
-  function updateRace(raceId: string, updates: Partial<Omit<Race, 'id'>>) {
+  async function updateRace(raceId: string, updates: Partial<Omit<Race, 'id'>>) {
     const race = races.value.find(r => r.id === raceId);
     if (race) {
+      // Update local state first for immediate UI update
       Object.assign(race, updates);
+      
+      // Save to API if available
+      try {
+        const savedRace = await saveRaceToApi(race);
+        // Update the race with the API response
+        const index = races.value.findIndex(r => r.id === raceId);
+        if (index !== -1) {
+          races.value[index] = savedRace;
+        }
+        return savedRace;
+      } catch (error) {
+        console.error('Failed to save race to API:', error);
+        // Return the local race even if API save failed
+        return race;
+      }
     }
   }
 
-  function deleteRace(raceId: string) {
+  async function deleteRace(raceId: string) {
     const raceIndex = races.value.findIndex(r => r.id === raceId);
     if (raceIndex !== -1) {
+      // Delete from API first if available
+      try {
+        await deleteRaceFromApi(raceId);
+        console.log('Race deleted from API');
+      } catch (error) {
+        console.error('Failed to delete race from API:', error);
+        // Continue with local deletion even if API fails
+      }
+      
+      // Remove from local state
       races.value.splice(raceIndex, 1);
       
       // If we deleted the current race, set to first available
@@ -855,39 +997,66 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     }
   }
 
-  function recordLegCompletionTime(legId: string, completionTime: Date) {
+  async function recordLegCompletionTime(legId: string, completionTime: Date) {
     if (!currentTeam.value) return;
     
     const leg = currentTeam.value.legs.find(l => l.id === legId);
     if (leg && !leg.timeEntry) {
-          // Add time entry directly to the leg
-    leg.timeEntry = {
-      timestamp: completionTime,
-      notes: 'Recorded from dashboard'
-    };
+      // Add time entry directly to the leg
+      leg.timeEntry = {
+        timestamp: completionTime,
+        notes: 'Recorded from dashboard'
+      };
+      
+      // Save the updated race to API
+      if (currentRace.value) {
+        try {
+          await saveRaceToApi(currentRace.value);
+        } catch (error) {
+          console.error('Failed to save leg completion time to API:', error);
+        }
+      }
     }
   }
 
-  function updateLegCompletionTime(legId: string, completionTime: Date) {
+  async function updateLegCompletionTime(legId: string, completionTime: Date) {
     if (!currentTeam.value) return;
     
     const leg = currentTeam.value.legs.find(l => l.id === legId);
     if (leg && leg.timeEntry) {
       leg.timeEntry.timestamp = completionTime;
       leg.timeEntry.notes = 'Updated completion time';
+      
+      // Save the updated race to API
+      if (currentRace.value) {
+        try {
+          await saveRaceToApi(currentRace.value);
+        } catch (error) {
+          console.error('Failed to save leg completion time update to API:', error);
+        }
+      }
     }
   }
 
-  function removeLegCompletionTime(legId: string) {
+  async function removeLegCompletionTime(legId: string) {
     if (!currentTeam.value) return;
     
     const leg = currentTeam.value.legs.find(l => l.id === legId);
     if (leg && leg.timeEntry) {
       delete leg.timeEntry;
+      
+      // Save the updated race to API
+      if (currentRace.value) {
+        try {
+          await saveRaceToApi(currentRace.value);
+        } catch (error) {
+          console.error('Failed to save leg completion time removal to API:', error);
+        }
+      }
     }
   }
 
-  function setActiveRace(raceId: string) {
+  async function setActiveRace(raceId: string) {
     // Set all races as inactive first
     races.value.forEach(race => {
       race.isActive = false;
@@ -897,15 +1066,139 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     const race = races.value.find(r => r.id === raceId);
     if (race) {
       race.isActive = true;
+      
+      // Save the updated race to API
+      try {
+        await saveRaceToApi(race);
+      } catch (error) {
+        console.error('Failed to save active race to API:', error);
+      }
     }
   }
 
-  function lockRace(raceId: string) {
+  async function lockRace(raceId: string) {
     const race = races.value.find(r => r.id === raceId);
     if (race) {
       race.locked = true;
+      
+      // Save the updated race to API
+      try {
+        await saveRaceToApi(race);
+      } catch (error) {
+        console.error('Failed to save race lock to API:', error);
+      }
     }
   }
+
+  // API Integration Functions
+  async function loadRacesFromApi() {
+    if (isMockMode.value || !isApiAvailable()) {
+      console.log('Using mock data or API not available');
+      return;
+    }
+
+    try {
+      isLoading.value = true;
+      const response = await racesApi.getAll();
+      races.value = response.races;
+      console.log(`Loaded ${response.count} races from API`);
+    } catch (error) {
+      console.error('Failed to load races from API:', error);
+      // Fall back to mock data on error
+      races.value = [...mockRaces];
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function saveRaceToApi(race: Race) {
+    if (isMockMode.value || !isApiAvailable()) {
+      console.log('Using mock data or API not available');
+      return race;
+    }
+
+    try {
+      isLoading.value = true;
+      if (race.id.startsWith('race-')) {
+        // New race - create
+        const response = await racesApi.create(race);
+        console.log('Created race via API:', response.message);
+        return response.race;
+      } else {
+        // Existing race - update
+        const response = await racesApi.update(race.id, race);
+        console.log('Updated race via API:', response.message);
+        return response.race;
+      }
+    } catch (error) {
+      console.error('Failed to save race to API:', error);
+      throw error;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function deleteRaceFromApi(raceId: string) {
+    if (isMockMode.value || !isApiAvailable()) {
+      console.log('Using mock data or API not available');
+      return;
+    }
+
+    try {
+      isLoading.value = true;
+      await racesApi.delete(raceId);
+      console.log('Deleted race via API');
+    } catch (error) {
+      console.error('Failed to delete race from API:', error);
+      throw error;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // Mock mode toggle function
+  function toggleMockModeForDevelopment(useMock: boolean) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('htc-mock-mode', useMock.toString());
+      // Reload the page to apply the new mode
+      window.location.reload();
+    }
+  }
+
+  // Get API status
+  function getApiStatus() {
+    return {
+      isMockMode: isMockMode.value,
+      isApiAvailable: isApiAvailable(),
+      isLoading: isLoading.value,
+      mockModeStatus: getMockModeStatus(),
+      baseUrl: import.meta.env.VITE_API_URL || 'https://htcapi.dev.your-domain.com',
+    };
+  }
+
+  // Initialize the store after all functions are defined
+  const initializeStore = () => {
+    // Set the most recent race as active
+    const mostRecent = nextUpcomingRace.value;
+    
+    if (mostRecent) {
+      mostRecent.isActive = true;
+      currentRaceId.value = mostRecent.id;
+    } else {
+      // Fallback to first race if no races exist
+      currentRaceId.value = races.value[0]?.id || null;
+    }
+
+    // If not in mock mode, try to load from API
+    if (!isMockMode.value) {
+      loadRacesFromApi().catch(() => {
+        console.log('API failed, using mock data');
+      });
+    }
+  };
+
+  // Initialize the store
+  initializeStore();
 
   return {
     // State
@@ -976,6 +1269,16 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     updateLegCompletionTime,
     removeLegCompletionTime,
     setActiveRace,
-    lockRace
+    lockRace,
+    
+    // API Integration
+    loadRacesFromApi,
+    saveRaceToApi,
+    deleteRaceFromApi,
+    toggleMockModeForDevelopment,
+    getApiStatus,
+    
+    // Environment info
+    environment: environment
   };
 });

@@ -398,12 +398,14 @@
 
         <q-card-section class="q-pt-none">
           <q-form @submit="handleSaveCompletionTime" class="q-gutter-md q-pl-md">
-            <CompletionDateInput
+            <DateInput
               v-model="completionTimeForm.date"
+              label="Completion Date"
             />
 
-            <CompletionTimeInput
+            <TimeInput
               v-model="completionTimeForm.time"
+              label="Completion Time"
             />
 
             <div class="row justify-end q-gutter-sm">
@@ -457,8 +459,8 @@ import { useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
 import type { Leg, Race } from '../types';
-import CompletionDateInput from '../components/CompletionDateInput.vue';
-import CompletionTimeInput from '../components/CompletionTimeInput.vue';
+import DateInput from '../components/DateInput.vue';
+import TimeInput from '../components/TimeInput.vue';
 
 const route = useRoute();
 const $q = useQuasar();

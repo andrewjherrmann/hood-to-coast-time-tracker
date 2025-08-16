@@ -230,9 +230,14 @@ export class HoodToCoastStack extends cdk.Stack {
         allowOrigins: [
           // Use custom domain if available, otherwise use CloudFront domain
           ...(props.useCustomDomain && props.subdomain && props.domainName 
-            ? [`https://${props.subdomain}.${props.domainName}`]
+            ? [
+                `https://${props.subdomain}.${props.domainName}`, // Frontend domain
+                `https://htcapi.dev.${props.domainName}`, // API domain for development
+                `https://htcapi.${props.domainName}`, // API domain for production
+              ]
             : ['https://d8rt0db3kvzd3.cloudfront.net']), // Default CloudFront domain
-          'http://localhost:3000' // For local development
+          'http://localhost:9000', // For local development (Quasar default port)
+          'http://localhost:3000' // For local development (alternative port)
         ],
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: ['Content-Type', 'X-Api-Key'],
