@@ -51,7 +51,7 @@ function createRunnersForYear(raceId: string, baseId: number, year: number, prev
     // Add returning runners with potential pace changes
     returning.forEach((runner, index) => {
       const paceIndex = Math.floor(Math.random() * paceVariations.length);
-      const pace = paceVariations[paceIndex]!;
+      const pace = paceVariations[paceIndex];
       
       selectedRunners.push({
         id: `runner-${baseId + index}-${raceId}`,
@@ -76,7 +76,7 @@ function createRunnersForYear(raceId: string, baseId: number, year: number, prev
   
   newRunners.forEach((runner, index) => {
     const paceIndex = Math.floor(Math.random() * paceVariations.length);
-    const pace = paceVariations[paceIndex]!;
+    const pace = paceVariations[paceIndex];
     
     selectedRunners.push({
       id: `runner-${baseId + selectedRunners.length + index}-${raceId}`,

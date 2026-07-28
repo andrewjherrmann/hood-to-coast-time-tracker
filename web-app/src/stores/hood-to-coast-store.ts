@@ -386,7 +386,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     if (!currentTeam.value) return [];
     
     return currentTeam.value.runners.map(runner => {
-      const runnerLegs = currentTeam.value!.legs.filter(leg => 
+      const runnerLegs = currentTeam.value.legs.filter(leg => 
         leg.runnerId === runner.id && isLegCompleted(leg)
       );
       
