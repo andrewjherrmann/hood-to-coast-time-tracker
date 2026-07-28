@@ -183,7 +183,7 @@ export class HoodToCoastStack extends cdk.Stack {
           },
           StringLike: {
             'token.actions.githubusercontent.com:sub':
-              'repo:andrewjherrmann/hood-to-coast-time-tracker:ref:refs/heads/*',
+              'repo:andrewjherrmann/hood-to-coast-time-tracker:environment:*',
           },
         }
       ),
