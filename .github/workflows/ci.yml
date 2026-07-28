@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, development]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-build:
+    name: Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      # Pin actions to full commit SHAs to prevent supply-chain attacks
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Lint
+        working-directory: web-app
+        run: yarn lint
+
+      - name: Build frontend
+        working-directory: web-app
+        run: yarn build
+
+      - name: Build CDK
+        working-directory: infrastructure
+        run: yarn build
+
+      - name: CDK Synth (validate templates)
+        working-directory: infrastructure
+        run: npx cdk synth --no-lookups

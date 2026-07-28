@@ -1,0 +1,137 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - development
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - production
+
+# Minimal permissions — only what's needed for OIDC token exchange
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    # Map branch to environment: main → production, development → development
+    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'development') }}
+    outputs:
+      api_url: ${{ steps.cdk-outputs.outputs.api_url }}
+      bucket_name: ${{ steps.cdk-outputs.outputs.bucket_name }}
+      distribution_id: ${{ steps.cdk-outputs.outputs.distribution_id }}
+      target_env: ${{ steps.set-env.outputs.target_env }}
+    steps:
+      - name: Determine target environment
+        id: set-env
+        run: |
+          if [ -n "${{ github.event.inputs.environment }}" ]; then
+            echo "target_env=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "target_env=production" >> "$GITHUB_OUTPUT"
+          else
+            echo "target_env=development" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Pin actions to full commit SHAs to prevent supply-chain attacks
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          role-session-name: github-actions-deploy-${{ github.run_id }}
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build CDK
+        working-directory: infrastructure
+        run: yarn build
+
+      - name: CDK Deploy
+        working-directory: infrastructure
+        run: |
+          npx cdk deploy --require-approval never \
+            --outputs-file cdk-outputs.json \
+            -c domainName=${{ vars.DOMAIN_NAME || '' }} \
+            -c subdomain=${{ vars.SUBDOMAIN || '' }}
+        env:
+          TARGET_ENVIRONMENT: ${{ steps.set-env.outputs.target_env }}
+
+      - name: Extract CDK outputs
+        id: cdk-outputs
+        working-directory: infrastructure
+        run: |
+          echo "api_url=$(jq -r '.HoodToCoastStack.ApiUrl // empty' cdk-outputs.json)" >> "$GITHUB_OUTPUT"
+          echo "bucket_name=$(jq -r '.HoodToCoastStack.WebsiteBucketName // empty' cdk-outputs.json)" >> "$GITHUB_OUTPUT"
+          echo "distribution_id=$(jq -r '.HoodToCoastStack.DistributionId // empty' cdk-outputs.json)" >> "$GITHUB_OUTPUT"
+
+  deploy-frontend:
+    name: Deploy Frontend
+    needs: deploy-infrastructure
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'development') }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'yarn'
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          role-session-name: github-actions-frontend-${{ github.run_id }}
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Create production env file
+        working-directory: web-app
+        run: |
+          cat > .env.production <<EOF
+          VITE_MOCK_MODE=false
+          VITE_API_URL=${{ needs.deploy-infrastructure.outputs.api_url }}
+          VITE_API_KEY_REQUIRED=true
+          VITE_AWS_REGION=${{ vars.AWS_REGION || 'us-east-1' }}
+          VITE_ENVIRONMENT=${{ needs.deploy-infrastructure.outputs.target_env }}
+          EOF
+
+      - name: Build frontend
+        working-directory: web-app
+        run: yarn build
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync web-app/dist/spa/ \
+            s3://${{ needs.deploy-infrastructure.outputs.bucket_name }} \
+            --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ needs.deploy-infrastructure.outputs.distribution_id }} \
+            --paths "/*"
