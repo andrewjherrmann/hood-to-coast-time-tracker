@@ -167,6 +167,79 @@ export class HoodToCoastStack extends cdk.Stack {
       this.generateEnvironmentFile(props, distribution.distributionDomainName);
     }
 
+    // GitHub Actions OIDC Provider & Deploy Role
+    const githubOidcProvider = new iam.OpenIdConnectProvider(this, 'GithubOidcProvider', {
+      url: 'https://token.actions.githubusercontent.com',
+      clientIds: ['sts.amazonaws.com'],
+    });
+
+    const githubDeployRole = new iam.Role(this, 'GithubActionsDeployRole', {
+      roleName: `${props.environment}-github-actions-deploy`,
+      assumedBy: new iam.WebIdentityPrincipal(
+        githubOidcProvider.openIdConnectProviderArn,
+        {
+          StringEquals: {
+            'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
+          },
+          StringLike: {
+            'token.actions.githubusercontent.com:sub':
+              'repo:andrewjherrmann/hood-to-coast-time-tracker:ref:refs/heads/*',
+          },
+        }
+      ),
+      description: 'Role assumed by GitHub Actions for CI/CD deployments',
+    });
+
+    // CDK bootstrap role assumption (required for cdk deploy)
+    githubDeployRole.addToPolicy(new iam.PolicyStatement({
+      sid: 'AssumeBootstrapRoles',
+      actions: ['sts:AssumeRole'],
+      resources: [`arn:aws:iam::${this.account}:role/cdk-*`],
+    }));
+
+    // CloudFormation permissions for CDK
+    githubDeployRole.addToPolicy(new iam.PolicyStatement({
+      sid: 'CloudFormation',
+      actions: [
+        'cloudformation:DescribeStacks',
+        'cloudformation:GetTemplate',
+        'cloudformation:CreateChangeSet',
+        'cloudformation:DescribeChangeSet',
+        'cloudformation:ExecuteChangeSet',
+        'cloudformation:DeleteChangeSet',
+        'cloudformation:DescribeStackEvents',
+      ],
+      resources: [`arn:aws:cloudformation:${props.region}:${this.account}:stack/HoodToCoastStack/*`],
+    }));
+
+    // S3 permissions for frontend deployment
+    githubDeployRole.addToPolicy(new iam.PolicyStatement({
+      sid: 'S3Deploy',
+      actions: [
+        's3:PutObject',
+        's3:GetObject',
+        's3:DeleteObject',
+        's3:ListBucket',
+        's3:GetBucketLocation',
+      ],
+      resources: [
+        websiteBucket.bucketArn,
+        websiteBucket.arnForObjects('*'),
+      ],
+    }));
+
+    // CloudFront invalidation
+    githubDeployRole.addToPolicy(new iam.PolicyStatement({
+      sid: 'CloudFrontInvalidation',
+      actions: ['cloudfront:CreateInvalidation'],
+      resources: [`arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`],
+    }));
+
+    new cdk.CfnOutput(this, 'GithubActionsRoleArn', {
+      value: githubDeployRole.roleArn,
+      description: 'IAM Role ARN for GitHub Actions (set as AWS_ROLE_ARN secret)',
+    });
+
     // Outputs
     new cdk.CfnOutput(this, 'WebsiteUrl', {
       value: props.useCustomDomain && fullDomainName 
@@ -180,7 +253,7 @@ export class HoodToCoastStack extends cdk.Stack {
       description: 'CloudFront Distribution ID',
     });
 
-    new cdk.CfnOutput(this, 'S3BucketName', {
+    new cdk.CfnOutput(this, 'WebsiteBucketName', {
       value: websiteBucket.bucketName,
       description: 'S3 Bucket Name for Website',
     });
