@@ -77,14 +77,20 @@ cdk.out/
 *.d.ts
 !global.d.ts
 
+# CDK compiled output (build from .ts sources)
+infrastructure/bin/*.js
+infrastructure/lib/*.js
+infrastructure/config/*.js
+!infrastructure/config/*.template.js
+infrastructure/config/local.ts
+
 # Quasar build artifacts
 .quasar/
 
 # Keep yarn.lock (important for reproducible builds)
 !yarn.lock
-config/local.js
 cdk.context.json
- .env.production
+.env.production
 
 # Test files that may contain sensitive data
 test-api.json
@@ -95,4 +101,3 @@ simple-test.json
 # Log files and directories containing sensitive data
 log_files/
 *.csv
-infrastructure/scripts/*.ps1

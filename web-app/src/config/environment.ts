@@ -50,15 +50,17 @@ export const getMockModeStatus = () => ({
   localStorageValue: typeof window !== 'undefined' ? localStorage.getItem('htc-mock-mode') : null,
 });
 
-// Debug logging
-console.log('Environment config debug:', {
-  NODE_ENV: process.env.NODE_ENV,
-  VITE_MOCK_MODE: import.meta.env.VITE_MOCK_MODE,
-  VITE_ENVIRONMENT: import.meta.env.VITE_ENVIRONMENT,
-  isDevelopment,
-  isMockMode,
-  useMockData
-});
+// Debug logging (development only)
+if (isDevelopment) {
+  console.log('Environment config debug:', {
+    NODE_ENV: process.env.NODE_ENV,
+    VITE_MOCK_MODE: import.meta.env.VITE_MOCK_MODE,
+    VITE_ENVIRONMENT: import.meta.env.VITE_ENVIRONMENT,
+    isDevelopment,
+    isMockMode,
+    useMockData
+  });
+}
 
 // CDK deployment configuration
 export const cdkConfig = {

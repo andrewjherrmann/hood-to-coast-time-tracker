@@ -216,6 +216,19 @@ export class HoodToCoastStack extends cdk.Stack {
       description: 'API Key ID for Hood to Coast Time Tracker',
     });
 
+    // Build the allowed origins list for CORS
+    const allowedOrigins = [
+      ...(props.useCustomDomain && props.subdomain && props.domainName 
+        ? [
+            `https://${props.subdomain}.${props.domainName}`,
+            `https://htcapi.dev.${props.domainName}`,
+            `https://htcapi.${props.domainName}`,
+          ]
+        : []),
+      'http://localhost:9000',
+      'http://localhost:3000'
+    ];
+
     // Lambda function for races endpoint with DynamoDB integration
     const racesFunction = new lambda.Function(this, 'RacesFunction', {
       functionName: `${props.environment}-htc-races`,
@@ -228,6 +241,7 @@ export class HoodToCoastStack extends cdk.Stack {
       environment: {
         ENVIRONMENT: props.environment,
         RACES_TABLE_NAME: racesTable.tableName,
+        ALLOWED_ORIGINS: allowedOrigins.join(','),
       },
     });
 
@@ -239,26 +253,17 @@ export class HoodToCoastStack extends cdk.Stack {
       restApiName: `${props.environment}-htc-api`,
       description: 'Hood to Coast Time Tracker API',
       defaultCorsPreflightOptions: {
-        allowOrigins: [
-          // Use custom domain if available, otherwise use CloudFront domain
-          ...(props.useCustomDomain && props.subdomain && props.domainName 
-            ? [
-                `https://${props.subdomain}.${props.domainName}`, // Frontend domain
-                `https://htcapi.dev.${props.domainName}`, // API domain for development
-                `https://htcapi.${props.domainName}`, // API domain for production
-              ]
-            : ['https://d8rt0db3kvzd3.cloudfront.net']), // Default CloudFront domain
-          'http://localhost:9000', // For local development (Quasar default port)
-          'http://localhost:3000' // For local development (alternative port)
-        ],
+        allowOrigins: allowedOrigins,
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: ['Content-Type', 'X-Api-Key'],
         allowCredentials: true,
       },
       deployOptions: {
         stageName: props.environment,
-        loggingLevel: apigateway.MethodLoggingLevel.INFO,
-        dataTraceEnabled: true,
+        loggingLevel: props.environment === 'production' 
+          ? apigateway.MethodLoggingLevel.ERROR 
+          : apigateway.MethodLoggingLevel.INFO,
+        dataTraceEnabled: props.environment !== 'production',
       },
     });
 
