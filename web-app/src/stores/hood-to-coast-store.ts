@@ -68,6 +68,11 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
 
   const activeRace = computed(() => races.value.find(race => race.isActive) || null);
 
+  // Races sorted by date descending (newest first) — use this for all dropdowns/lists
+  const sortedRaces = computed(() =>
+    [...races.value].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  );
+
   // Check if store is fully initialized
   const isInitialized = computed(() => races.value.length > 0);
 
@@ -1335,6 +1340,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     currentRace,
     currentTeam,
     activeRace,
+    sortedRaces,
     isInitialized,
     totalDistance,
     completedLegs,

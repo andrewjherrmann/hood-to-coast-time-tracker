@@ -350,12 +350,10 @@ watch(() => store.currentRaceId, (newValue) => {
 });
 
 // Race options for selector
-const raceOptions = computed(() => store.races);
+const raceOptions = computed(() => store.sortedRaces);
 
 // Computed property for sorted races (newest first)
-const sortedRaces = computed(() => {
-  return [...store.races].sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime());
-});
+const sortedRaces = computed(() => store.sortedRaces);
 
 // Dialog states
 const showNewRaceDialog = ref(false);

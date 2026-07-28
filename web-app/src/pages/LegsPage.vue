@@ -690,7 +690,7 @@ watch(() => store.races, (newRaces) => {
 }, { immediate: true });
 
 // Race options for selector
-const raceOptions = computed(() => store.races);
+const raceOptions = computed(() => store.sortedRaces);
 
 // Drag and drop state
 const draggedLeg = ref<Leg | null>(null);
@@ -787,7 +787,7 @@ function formatTime(date: Date | null): string {
 }
 
 function formatDateForInput(date: Date): string {
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split('T')[0] ?? '';
 }
 
 function formatTimeForInput(date: Date): string {
@@ -847,9 +847,9 @@ function editLeg(leg: Leg) {
     estimatedPaceMinutes: leg.estimatedPaceMinutes,
     estimatedPaceSeconds: leg.estimatedPaceSeconds,
     runnerId: leg.runnerId,
-    completionDate: leg.timeEntry?.timestamp ? formatDateForInput(leg.timeEntry.timestamp) : '',
-    completionTime: leg.timeEntry?.timestamp ? formatTimeForInput(leg.timeEntry.timestamp) : '',
-    completionNotes: (leg.timeEntry?.notes ?? '') as string
+    completionDate: leg.timeEntry?.timestamp ? formatDateForInput(new Date(leg.timeEntry.timestamp)) : '',
+    completionTime: leg.timeEntry?.timestamp ? formatTimeForInput(new Date(leg.timeEntry.timestamp)) : '',
+    completionNotes: leg.timeEntry?.notes ?? ''
   };
   showAddLegDialog.value = true;
 }

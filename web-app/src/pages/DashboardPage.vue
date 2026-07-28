@@ -544,7 +544,7 @@ const currentLeg = computed(() => store.currentLeg);
 const progressPercentage = computed(() => store.progressPercentage);
 
 // Race options for selector
-const raceOptions = computed(() => store.races);
+const raceOptions = computed(() => store.sortedRaces);
 
 // Quick Time Recording State
 const completionDate = ref<string | null>(null);

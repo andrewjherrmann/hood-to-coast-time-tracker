@@ -305,7 +305,7 @@ watch(() => store.currentRaceId, (newValue) => {
 });
 
 // Race options for selector
-const raceOptions = computed(() => store.races);
+const raceOptions = computed(() => store.sortedRaces);
 
 // Local state
 const showAddRunnerDialog = ref(false);
