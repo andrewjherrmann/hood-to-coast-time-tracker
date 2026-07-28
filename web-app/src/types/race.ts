@@ -42,4 +42,5 @@ export interface Race {
   team: Team;
   isActive: boolean;
   locked: boolean;
+  organizerEstimatedTime?: number; // Organizer's estimated overall time in minutes
 }

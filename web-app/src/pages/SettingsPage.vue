@@ -37,7 +37,7 @@
         </q-card>
       </div>
 
-             <!-- Team Information -->
+                           <!-- Team Information -->
        <div class="col-12 col-md-6">
          <q-card>
            <q-card-section>
@@ -50,11 +50,62 @@
                  dense
                  class="col-12"
                />
+               
                <div class="q-mt-md">
                  <q-btn
                    color="primary"
                    label="Update Team Name"
                    @click="saveTeamInfo"
+                 />
+               </div>
+             </div>
+           </q-card-section>
+         </q-card>
+       </div>
+
+       <!-- Race Information -->
+       <div class="col-12 col-md-6">
+         <q-card>
+           <q-card-section>
+             <div class="text-h6">Race Information</div>
+             <div class="q-mt-md">
+               <!-- Organizer's Estimated Overall Time -->
+               <div class="q-mt-md">
+                 <div class="text-subtitle2 q-mb-sm">Organizer's Estimated Overall Time</div>
+                 <div class="text-caption text-grey-6 q-mb-sm">
+                   Target finish time to avoid disqualification (HTC: ±2 hours)
+                 </div>
+                 <div class="row q-gutter-sm">
+                   <div class="col">
+                     <q-input
+                       v-model.number="raceForm.organizerEstimatedHours"
+                       label="Hours"
+                       type="number"
+                       outlined
+                       dense
+                       min="0"
+                       max="48"
+                     />
+                   </div>
+                   <div class="col">
+                     <q-input
+                       v-model.number="raceForm.organizerEstimatedMinutes"
+                       label="Minutes"
+                       type="number"
+                       outlined
+                       dense
+                       min="0"
+                       max="59"
+                     />
+                   </div>
+                 </div>
+               </div>
+               
+               <div class="q-mt-md">
+                 <q-btn
+                   color="primary"
+                   label="Update Race Info"
+                   @click="saveRaceInfo"
                  />
                </div>
              </div>
@@ -184,6 +235,11 @@ const teamForm = ref({
   name: ''
 });
 
+const raceForm = ref({
+  organizerEstimatedHours: 0,
+  organizerEstimatedMinutes: 0
+});
+
 const passwordForm = ref({
   currentPassword: '',
   newPassword: '',
@@ -221,6 +277,13 @@ onMounted(() => {
   if (currentTeam.value) {
     teamForm.value.name = currentTeam.value.name;
   }
+  
+  // Populate race form with current race data
+  if (store.currentRace?.organizerEstimatedTime) {
+    const totalMinutes = store.currentRace.organizerEstimatedTime;
+    raceForm.value.organizerEstimatedHours = Math.floor(totalMinutes / 60);
+    raceForm.value.organizerEstimatedMinutes = totalMinutes % 60;
+  }
 });
 
 // Methods
@@ -236,6 +299,31 @@ function saveTeamInfo() {
       type: 'positive',
       message: 'Team name updated successfully'
     });
+  }
+}
+
+async function saveRaceInfo() {
+  if (store.currentRace) {
+    try {
+      // Calculate total minutes from hours and minutes
+      const totalMinutes = (raceForm.value.organizerEstimatedHours * 60) + raceForm.value.organizerEstimatedMinutes;
+      
+      // Update the race with the new organizer estimated time
+      await store.updateRace(store.currentRace.id, {
+        organizerEstimatedTime: totalMinutes
+      });
+      
+      $q.notify({
+        type: 'positive',
+        message: 'Race organizer time updated successfully'
+      });
+    } catch (error) {
+      console.error('Failed to update race organizer time:', error);
+      $q.notify({
+        type: 'negative',
+        message: 'Failed to update race organizer time. Please try again.'
+      });
+    }
   }
 }
 

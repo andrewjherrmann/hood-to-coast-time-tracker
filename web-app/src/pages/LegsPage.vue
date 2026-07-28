@@ -69,7 +69,114 @@
           Drag and drop legs to reorder them. The order determines the sequence of the race.
         </div>
         
-        <q-list separator>
+        <!-- Desktop: Inline Tile Layout -->
+        <div class="hidden-xs">
+          <div class="row">
+            <div
+              v-for="leg in sortedLegs"
+              :key="leg.id"
+              class="col-12 col-md-6 col-lg-4 q-pa-sm"
+            >
+              <q-card
+                :class="store.isLegCompleted(leg) ? 'bg-positive-1' : 'bg-grey-1'"
+                class="leg-tile"
+                draggable="true"
+                @dragstart="onDragStart($event, leg)"
+                @dragover.prevent
+                @drop="onDrop($event, leg)"
+                @dragenter.prevent
+              >
+                <q-card-section class="q-pa-sm">
+                  <!-- Header with order number and action buttons -->
+                  <div class="row items-center justify-between q-mb-sm">
+                    <q-avatar
+                      :color="store.isLegCompleted(leg) ? 'positive' : 'grey'"
+                      text-color="white"
+                      size="sm"
+                      class="leg-number"
+                    >
+                      {{ leg.order }}
+                    </q-avatar>
+                    
+                    <div class="row q-gutter-xs">
+                      <q-btn
+                        flat
+                        round
+                        color="secondary"
+                        icon="edit"
+                        size="xs"
+                        @click="editLeg(leg)"
+                        :disable="store.currentRace?.locked"
+                        title="Edit leg"
+                      />
+                      <q-btn
+                        flat
+                        round
+                        color="negative"
+                        icon="delete"
+                        size="xs"
+                        @click="confirmDeleteLeg(leg)"
+                        :disable="store.currentRace?.locked"
+                        title="Delete leg"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Leg Info Chips -->
+                  <div class="row q-gutter-xs q-mb-sm">
+                    <q-chip
+                      :color="getDifficultyColor(leg.difficulty)"
+                      text-color="white"
+                      :label="leg.difficulty"
+                      size="xs"
+                    />
+                    <q-chip
+                      color="primary"
+                      text-color="white"
+                      :label="`${leg.distance} mi`"
+                      size="xs"
+                    />
+                    <q-chip
+                      color="secondary"
+                      text-color="white"
+                      :label="`${store.getLegEstimatedTime(leg)} min`"
+                      size="xs"
+                    />
+                  </div>
+
+                  <!-- Description -->
+                  <div class="text-body2 q-mb-sm" v-if="leg.description">
+                    {{ leg.description }}
+                  </div>
+
+                  <!-- Assigned Runner -->
+                  <div class="q-mb-sm">
+                    <div class="text-caption text-grey-6">Runner</div>
+                    <div class="text-body2">
+                      {{ getAssignedRunnerName(leg) || 'Unassigned' }}
+                    </div>
+                  </div>
+
+                  <!-- Completion Status -->
+                  <div v-if="store.isLegCompleted(leg)" class="q-mt-sm">
+                    <q-chip
+                      color="positive"
+                      text-color="white"
+                      :label="`${store.getLegActualDuration(leg)} min`"
+                      size="xs"
+                    />
+                    <div class="text-caption text-grey-6 q-mt-xs">
+                      {{ formatTime(store.getLegStartTime(leg)) }}
+                    </div>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile: Original List Layout -->
+        <q-list separator class="visible-xs">
           <q-item
             v-for="leg in sortedLegs"
             :key="leg.id"
@@ -370,6 +477,61 @@
               />
             </div>
 
+            <!-- Completion Time Fields (only show when editing) -->
+            <div v-if="editingLeg" class="q-mt-md">
+              <div class="text-subtitle2 q-mb-sm">Completion Time</div>
+              <div class="text-caption text-grey-6 q-mb-sm">
+                Record when this leg was completed
+              </div>
+              
+              <div class="row q-gutter-sm">
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="legForm.completionDate"
+                    label="Date"
+                    type="date"
+                    outlined
+                    dense
+                    :rules="[val => !!val || 'Date is required']"
+                  />
+                </div>
+                <div class="col-12 col-md-6">
+                  <q-input
+                    v-model="legForm.completionTime"
+                    label="Time"
+                    type="time"
+                    outlined
+                    dense
+                    :rules="[val => !!val || 'Time is required']"
+                  />
+                </div>
+              </div>
+              
+              <q-input
+                v-model="legForm.completionNotes"
+                label="Notes (optional)"
+                outlined
+                dense
+                type="textarea"
+                rows="2"
+                placeholder="Any notes about the completion..."
+                class="q-mt-sm"
+              />
+              
+              <div class="row q-mt-sm">
+                <div class="col">
+                  <q-btn
+                    flat
+                    color="negative"
+                    icon="delete"
+                    label="Clear Completion Time"
+                    @click="clearCompletionTime"
+                    class="full-width"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div class="row q-mt-md">
               <div class="col-12 col-md-6 q-pr-md">
                 <q-btn
@@ -556,7 +718,10 @@ const legForm = ref({
   difficulty: 'Medium' as 'Easy' | 'Medium' | 'Hard' | 'Very Hard',
   estimatedPaceMinutes: 8,
   estimatedPaceSeconds: 30,
-  runnerId: undefined as string | undefined
+  runnerId: undefined as string | undefined,
+  completionDate: '',
+  completionTime: '',
+  completionNotes: ''
 });
 
 const difficultyOptions = ['Easy', 'Medium', 'Hard', 'Very Hard'];
@@ -621,6 +786,14 @@ function formatTime(date: Date | null): string {
   return store.formatDateTime(date, true);
 }
 
+function formatDateForInput(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
+function formatTimeForInput(date: Date): string {
+  return date.toTimeString().slice(0, 5);
+}
+
 function getDifficultyColor(difficulty: string): string {
   switch (difficulty) {
     case 'Easy': return 'positive';
@@ -673,7 +846,10 @@ function editLeg(leg: Leg) {
     difficulty: leg.difficulty,
     estimatedPaceMinutes: leg.estimatedPaceMinutes,
     estimatedPaceSeconds: leg.estimatedPaceSeconds,
-    runnerId: leg.runnerId
+    runnerId: leg.runnerId,
+    completionDate: leg.timeEntry?.timestamp ? formatDateForInput(leg.timeEntry.timestamp) : '',
+    completionTime: leg.timeEntry?.timestamp ? formatTimeForInput(leg.timeEntry.timestamp) : '',
+    completionNotes: (leg.timeEntry?.notes ?? '') as string
   };
   showAddLegDialog.value = true;
 }
@@ -728,6 +904,12 @@ function onRunnerSelected(runner: Runner | undefined) {
   }
 }
 
+function clearCompletionTime() {
+  legForm.value.completionDate = '';
+  legForm.value.completionTime = '';
+  legForm.value.completionNotes = '';
+}
+
 
 
 function closeLegDialog() {
@@ -739,7 +921,10 @@ function closeLegDialog() {
     difficulty: 'Medium',
     estimatedPaceMinutes: 8,
     estimatedPaceSeconds: 30,
-    runnerId: undefined
+    runnerId: undefined,
+    completionDate: '',
+    completionTime: '',
+    completionNotes: ''
   };
 }
 
@@ -988,6 +1173,26 @@ function closeCompletionTimeDialog() {
 
 .leg-item:active {
   cursor: grabbing;
+}
+
+.leg-tile {
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  cursor: grab;
+  height: 100%;
+}
+
+.leg-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.leg-tile:active {
+  cursor: grabbing;
+}
+
+.leg-number {
+  font-weight: bold;
 }
 
 .leg-number {

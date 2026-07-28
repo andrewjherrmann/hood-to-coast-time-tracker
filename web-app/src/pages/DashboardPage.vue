@@ -135,7 +135,7 @@
              <q-chip
                color="secondary"
                text-color="white"
-               :label="`${store.getLegEstimatedTime(currentLeg)} min`"
+               :label="`${store.getLegEstimatedTime(currentLeg)} min (leg)`"
                size="lg"
              />
                           <q-chip
@@ -288,6 +288,38 @@
         <div v-else class="text-center text-grey-6">
           <q-icon name="flag" size="48px" />
           <div class="text-h6 q-mt-sm">All legs completed!</div>
+        </div>
+      </q-card-section>
+    </q-card>
+
+    <!-- Organizer's Estimated Overall Time -->
+    <q-card v-if="store.currentRace?.organizerEstimatedTime" class="q-mb-lg">
+      <q-card-section class="text-center">
+        <div class="text-h6 q-mb-md">Organizer's Estimated Overall Time</div>
+        <div class="row q-gutter-md justify-center">
+          <div class="col-12 col-md-6">
+            <q-card class="text-center" :class="getOrganizerTimeCardClass()">
+              <q-card-section>
+                <div class="text-h4 text-warning q-mb-sm">
+                  {{ formatOrganizerTime() }}
+                </div>
+                <div class="text-caption">
+                  {{ getOrganizerTimeMessage() }}
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+        </div>
+        
+        <!-- Time Difference Warning -->
+        <div v-if="getOrganizerTimeDifference() !== null" class="q-mt-md">
+          <q-chip
+            :color="(getOrganizerTimeDifference() || 0) > 120 ? 'negative' : 'warning'"
+            text-color="white"
+            :icon="(getOrganizerTimeDifference() || 0) > 120 ? 'warning' : 'info'"
+            :label="getOrganizerTimeDifferenceMessage()"
+            size="md"
+          />
         </div>
       </q-card-section>
     </q-card>
@@ -837,6 +869,61 @@ function getTotalActualDuration(): number {
   const startTime = new Date(currentTeam.value.startTime);
   const endTime = new Date(lastCompletedLeg.timeEntry.timestamp);
   return Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
+}
+
+// Organizer's Estimated Overall Time Helper Functions
+function formatOrganizerTime(): string {
+  if (!store.currentRace?.organizerEstimatedTime) return 'Not set';
+  const minutes = store.currentRace.organizerEstimatedTime;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (hours > 0) {
+    return `${hours}h ${remainingMinutes}m`;
+  }
+  return `${remainingMinutes}m`;
+}
+
+function getOrganizerTimeMessage(): string {
+  if (!store.currentRace?.organizerEstimatedTime) return 'No organizer time set';
+  return 'Target finish time to avoid disqualification';
+}
+
+function getOrganizerTimeCardClass(): string {
+  const difference = getOrganizerTimeDifference();
+  if (difference === null) return 'bg-warning-1';
+  if (Math.abs(difference) <= 120) return 'bg-positive-1 text-positive-8';
+  if (difference > 120) return 'bg-negative-1 text-negative-8';
+  return 'bg-warning-1 text-warning-8';
+}
+
+function getOrganizerTimeDifference(): number | null {
+  if (!store.currentRace?.organizerEstimatedTime || !store.currentEstimatedFinishTime || !store.currentTeam?.startTime) return null;
+  
+  const organizerMinutes = store.currentRace.organizerEstimatedTime;
+  const currentEstimatedMinutes = Math.round((store.currentEstimatedFinishTime.getTime() - store.currentTeam.startTime.getTime()) / (1000 * 60));
+  
+  return currentEstimatedMinutes - organizerMinutes;
+}
+
+function getOrganizerTimeDifferenceMessage(): string {
+  const difference = getOrganizerTimeDifference();
+  if (difference === null) return 'No comparison available';
+  
+  const absDifference = Math.abs(difference);
+  const hours = Math.floor(absDifference / 60);
+  const remainingMinutes = absDifference % 60;
+  
+  if (difference > 120) {
+    return `⚠️ ${hours}h ${remainingMinutes}m OVER - RISK OF DISQUALIFICATION`;
+  } else if (difference > 0) {
+    return `⚠️ ${hours}h ${remainingMinutes}m over target`;
+  } else if (difference < -120) {
+    return `⚠️ ${hours}h ${remainingMinutes}m UNDER - RISK OF DISQUALIFICATION`;
+  } else if (difference < 0) {
+    return `✅ ${hours}h ${remainingMinutes}m under target`;
+  } else {
+    return '✅ On target time';
+  }
 }
 
 

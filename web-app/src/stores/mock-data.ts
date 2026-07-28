@@ -194,6 +194,7 @@ export const mockRaces: Race[] = [
     date: new Date('2023-08-25'),
     isActive: false,
     locked: true,
+    organizerEstimatedTime: 18 * 60 + 30, // 18 hours 30 minutes
     team: (() => {
       const runners = createRunnersForYear('htc-2023', 1, 2023);
       return {
@@ -220,6 +221,7 @@ export const mockRaces: Race[] = [
     date: new Date('2024-08-23'),
     isActive: false,
     locked: true,
+    organizerEstimatedTime: 18 * 60 + 15, // 18 hours 15 minutes
     team: (() => {
       const runners2023 = createRunnersForYear('htc-2023', 1, 2023);
       const runners = createRunnersForYear('htc-2024', 13, 2024, runners2023);
@@ -247,6 +249,7 @@ export const mockRaces: Race[] = [
     date: new Date('2025-08-23'),
     isActive: false,
     locked: false,
+    organizerEstimatedTime: 18 * 60 + 0, // 18 hours 0 minutes
     team: (() => {
       const runners2023 = createRunnersForYear('htc-2023', 1, 2023);
       const runners2024 = createRunnersForYear('htc-2024', 13, 2024, runners2023);
@@ -275,6 +278,7 @@ export const mockRaces: Race[] = [
     date: new Date('2026-08-21'),
     isActive: true,
     locked: false,
+    organizerEstimatedTime: 17 * 60 + 45, // 17 hours 45 minutes
     team: (() => {
       const runners2023 = createRunnersForYear('htc-2023', 1, 2023);
       const runners2024 = createRunnersForYear('htc-2024', 13, 2024, runners2023);
