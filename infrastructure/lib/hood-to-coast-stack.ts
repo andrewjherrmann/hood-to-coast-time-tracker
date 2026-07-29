@@ -1,7 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as route53 from 'aws-cdk-lib/aws-route53';
@@ -14,7 +13,6 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { RemovalPolicy } from 'aws-cdk-lib';
-import * as path from 'path';
 
 export interface HoodToCoastStackProps extends cdk.StackProps {
   domainName?: string;
@@ -152,20 +150,86 @@ export class HoodToCoastStack extends cdk.Stack {
       });
     }
 
-    // Deploy frontend files to S3 bucket
-    new s3deploy.BucketDeployment(this, 'FrontendDeployment', {
-      sources: [s3deploy.Source.asset(path.join(__dirname, '../../web-app/dist/spa'))],
-      destinationBucket: websiteBucket,
-      distribution: distribution,
-      distributionPaths: ['/*'],
-      prune: true, // Remove old files
-      retainOnDelete: false,
-    });
+    // Frontend deployment is handled by the CI/CD pipeline (S3 sync + CloudFront invalidation)
+    // See .github/workflows/deploy.yml → deploy-frontend job
 
     // Generate environment file for web-app if requested
     if (props.generateEnvFile) {
       this.generateEnvironmentFile(props, distribution.distributionDomainName);
     }
+
+    // GitHub Actions OIDC Provider & Deploy Role
+    const githubOidcProvider = new iam.OpenIdConnectProvider(this, 'GithubOidcProvider', {
+      url: 'https://token.actions.githubusercontent.com',
+      clientIds: ['sts.amazonaws.com'],
+    });
+
+    const githubDeployRole = new iam.Role(this, 'GithubActionsDeployRole', {
+      roleName: `${props.environment}-github-actions-deploy`,
+      assumedBy: new iam.WebIdentityPrincipal(
+        githubOidcProvider.openIdConnectProviderArn,
+        {
+          StringEquals: {
+            'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
+          },
+          StringLike: {
+            'token.actions.githubusercontent.com:sub':
+              'repo:andrewjherrmann/hood-to-coast-time-tracker:environment:*',
+          },
+        }
+      ),
+      description: 'Role assumed by GitHub Actions for CI/CD deployments',
+    });
+
+    // CDK bootstrap role assumption (required for cdk deploy)
+    githubDeployRole.addToPolicy(new iam.PolicyStatement({
+      sid: 'AssumeBootstrapRoles',
+      actions: ['sts:AssumeRole'],
+      resources: [`arn:aws:iam::${this.account}:role/cdk-*`],
+    }));
+
+    // CloudFormation permissions for CDK
+    githubDeployRole.addToPolicy(new iam.PolicyStatement({
+      sid: 'CloudFormation',
+      actions: [
+        'cloudformation:DescribeStacks',
+        'cloudformation:GetTemplate',
+        'cloudformation:CreateChangeSet',
+        'cloudformation:DescribeChangeSet',
+        'cloudformation:ExecuteChangeSet',
+        'cloudformation:DeleteChangeSet',
+        'cloudformation:DescribeStackEvents',
+      ],
+      resources: [`arn:aws:cloudformation:${props.region}:${this.account}:stack/HoodToCoastStack/*`],
+    }));
+
+    // S3 permissions for frontend deployment
+    githubDeployRole.addToPolicy(new iam.PolicyStatement({
+      sid: 'S3Deploy',
+      actions: [
+        's3:PutObject',
+        's3:GetObject',
+        's3:DeleteObject',
+        's3:ListBucket',
+        's3:GetBucketLocation',
+      ],
+      resources: [
+        websiteBucket.bucketArn,
+        websiteBucket.arnForObjects('*'),
+      ],
+    }));
+
+    // CloudFront invalidation
+    githubDeployRole.addToPolicy(new iam.PolicyStatement({
+      sid: 'CloudFrontInvalidation',
+      actions: ['cloudfront:CreateInvalidation'],
+      resources: [`arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`],
+    }));
+
+    new cdk.CfnOutput(this, 'GithubActionsRoleArn', {
+      value: githubDeployRole.roleArn,
+      description: 'IAM Role ARN for GitHub Actions (set as AWS_ROLE_ARN secret)',
+    });
 
     // Outputs
     new cdk.CfnOutput(this, 'WebsiteUrl', {
@@ -180,7 +244,7 @@ export class HoodToCoastStack extends cdk.Stack {
       description: 'CloudFront Distribution ID',
     });
 
-    new cdk.CfnOutput(this, 'S3BucketName', {
+    new cdk.CfnOutput(this, 'WebsiteBucketName', {
       value: websiteBucket.bucketName,
       description: 'S3 Bucket Name for Website',
     });
@@ -232,7 +296,7 @@ export class HoodToCoastStack extends cdk.Stack {
     // Lambda function for races endpoint with DynamoDB integration
     const racesFunction = new lambda.Function(this, 'RacesFunction', {
       functionName: `${props.environment}-htc-races`,
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('lambda/races'),
       timeout: cdk.Duration.seconds(30),

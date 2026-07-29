@@ -383,10 +383,11 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
 
   // Individual runner performance
   const runnerPerformanceMetrics = computed((): RunnerPerformanceMetrics[] => {
-    if (!currentTeam.value) return [];
+    const team = currentTeam.value;
+    if (!team) return [];
     
-    return currentTeam.value.runners.map(runner => {
-      const runnerLegs = currentTeam.value!.legs.filter(leg => 
+    return team.runners.map(runner => {
+      const runnerLegs = team.legs.filter(leg => 
         leg.runnerId === runner.id && isLegCompleted(leg)
       );
       
