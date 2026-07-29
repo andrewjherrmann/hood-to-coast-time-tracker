@@ -1,7 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
-import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as route53 from 'aws-cdk-lib/aws-route53';
@@ -14,7 +13,6 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { RemovalPolicy } from 'aws-cdk-lib';
-import * as path from 'path';
 
 export interface HoodToCoastStackProps extends cdk.StackProps {
   domainName?: string;
@@ -152,15 +150,8 @@ export class HoodToCoastStack extends cdk.Stack {
       });
     }
 
-    // Deploy frontend files to S3 bucket
-    new s3deploy.BucketDeployment(this, 'FrontendDeployment', {
-      sources: [s3deploy.Source.asset(path.join(__dirname, '../../web-app/dist/spa'))],
-      destinationBucket: websiteBucket,
-      distribution: distribution,
-      distributionPaths: ['/*'],
-      prune: true, // Remove old files
-      retainOnDelete: false,
-    });
+    // Frontend deployment is handled by the CI/CD pipeline (S3 sync + CloudFront invalidation)
+    // See .github/workflows/deploy.yml → deploy-frontend job
 
     // Generate environment file for web-app if requested
     if (props.generateEnvFile) {
