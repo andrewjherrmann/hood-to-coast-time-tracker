@@ -296,7 +296,7 @@ export class HoodToCoastStack extends cdk.Stack {
     // Lambda function for races endpoint with DynamoDB integration
     const racesFunction = new lambda.Function(this, 'RacesFunction', {
       functionName: `${props.environment}-htc-races`,
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('lambda/races'),
       timeout: cdk.Duration.seconds(30),

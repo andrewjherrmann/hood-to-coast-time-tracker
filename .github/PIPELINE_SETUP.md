@@ -40,48 +40,58 @@ Create a role with a trust policy scoped to your repo and branch:
 
 ## 3. Least-Privilege Permissions for the Role
 
-Attach a policy with only what CDK and the frontend deploy need:
+The CDK stack automatically creates the deploy role with scoped permissions. If you need to create it manually, here's a properly scoped policy:
 
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "CDKDeploy",
-      "Effect": "Allow",
-      "Action": [
-        "cloudformation:*",
-        "s3:*",
-        "iam:PassRole",
-        "iam:GetRole",
-        "iam:CreateRole",
-        "iam:AttachRolePolicy",
-        "iam:PutRolePolicy",
-        "lambda:*",
-        "apigateway:*",
-        "dynamodb:*",
-        "cloudfront:*",
-        "route53:*",
-        "acm:*",
-        "logs:*",
-        "ssm:GetParameter",
-        "ssm:PutParameter"
-      ],
-      "Resource": "*"
-    },
-    {
       "Sid": "CDKBootstrap",
       "Effect": "Allow",
+      "Action": ["sts:AssumeRole"],
+      "Resource": "arn:aws:iam::ACCOUNT_ID:role/cdk-*"
+    },
+    {
+      "Sid": "CloudFormation",
+      "Effect": "Allow",
       "Action": [
-        "sts:AssumeRole"
+        "cloudformation:DescribeStacks",
+        "cloudformation:GetTemplate",
+        "cloudformation:CreateChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:DeleteChangeSet",
+        "cloudformation:DescribeStackEvents"
       ],
-      "Resource": "arn:aws:iam::*:role/cdk-*"
+      "Resource": "arn:aws:cloudformation:us-east-1:ACCOUNT_ID:stack/HoodToCoastStack/*"
+    },
+    {
+      "Sid": "S3Deploy",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket",
+        "s3:GetBucketLocation"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ENVIRONMENT-hood-to-coast-website-ACCOUNT_ID",
+        "arn:aws:s3:::ENVIRONMENT-hood-to-coast-website-ACCOUNT_ID/*"
+      ]
+    },
+    {
+      "Sid": "CloudFrontInvalidation",
+      "Effect": "Allow",
+      "Action": ["cloudfront:CreateInvalidation"],
+      "Resource": "arn:aws:cloudfront::ACCOUNT_ID:distribution/DISTRIBUTION_ID"
     }
   ]
 }
 ```
 
-> Note: For production, narrow `Resource: "*"` to specific ARNs once your stack stabilizes.
+> Note: Replace ACCOUNT_ID, ENVIRONMENT, and DISTRIBUTION_ID with your actual values. The CDK stack handles this automatically via the `GithubActionsDeployRole` construct.
 
 ## 4. Configure GitHub Repository
 
