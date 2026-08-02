@@ -2,9 +2,20 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { HoodToCoastStack } from '../lib/hood-to-coast-stack';
+import { HoodToCoastSharedStack } from '../lib/hood-to-coast-shared-stack';
 import { getEnvironmentConfig } from '../config/environments';
 
 const app = new cdk.App();
+
+// Shared account-global stack (deploy once: npx cdk deploy HoodToCoastStack-shared)
+// Owns the GitHub OIDC provider so it survives independent env stack lifecycles.
+const sharedStack = new HoodToCoastSharedStack(app, 'HoodToCoastStack-shared', {
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: 'us-east-1',
+  },
+  description: 'Hood to Coast - shared account-level resources (OIDC provider)',
+});
 
 // Get environment from env var or command line argument, default to development
 const targetEnvironment = process.env.TARGET_ENVIRONMENT || process.argv[2] || 'development';
@@ -25,7 +36,7 @@ if (useCustomDomain) {
 // Use environment-specific stack name so dev and prod can coexist as separate stacks
 const stackName = `HoodToCoastStack-${targetEnvironment}`;
 
-new HoodToCoastStack(app, stackName, {
+const envStack = new HoodToCoastStack(app, stackName, {
   env: { 
     account: process.env.CDK_DEFAULT_ACCOUNT, 
     region: baseConfig.region 
@@ -37,8 +48,11 @@ new HoodToCoastStack(app, stackName, {
   useCustomDomain: useCustomDomain,
   mockMode: baseConfig.mockMode,
   generateEnvFile: baseConfig.generateEnvFile,
-  description: baseConfig.description
+  description: baseConfig.description,
+  githubOidcProvider: sharedStack.githubOidcProvider,
 });
+
+envStack.addDependency(sharedStack);
 
 // Add tags to all resources
 cdk.Tags.of(app).add('Project', 'HoodToCoastTracker');

@@ -22,6 +22,7 @@ export interface HoodToCoastStackProps extends cdk.StackProps {
   useCustomDomain: boolean;
   mockMode: boolean;
   generateEnvFile: boolean;
+  githubOidcProvider: iam.IOpenIdConnectProvider;
 }
 
 // Helper function to get context values with defaults
@@ -159,13 +160,8 @@ export class HoodToCoastStack extends cdk.Stack {
     }
 
     // GitHub Actions OIDC Provider & Deploy Role
-    // The OIDC provider is account-global (only one per account), so we look it up
-    // rather than create it — avoids collision between dev and prod stacks.
-    const githubOidcProvider = iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(
-      this,
-      'GithubOidcProvider',
-      `arn:aws:iam::${this.account}:oidc-provider/token.actions.githubusercontent.com`,
-    );
+    // Passed in from HoodToCoastSharedStack — account-global, owned there.
+    const githubOidcProvider = props.githubOidcProvider;
 
     const githubDeployRole = new iam.Role(this, 'GithubActionsDeployRole', {
       roleName: `${props.environment}-github-actions-deploy`,
