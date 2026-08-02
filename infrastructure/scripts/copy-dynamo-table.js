@@ -7,8 +7,10 @@
  *   node copy-dynamo-table.js production-htc-races development-htc-races us-east-1
  */
 
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, ScanCommand, BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
+// Resolve AWS SDK from the lambda/races node_modules since it's not in infrastructure/node_modules
+const racesModules = require('path').join(__dirname, '../lambda/races/node_modules');
+const { DynamoDBClient } = require(require.resolve('@aws-sdk/client-dynamodb', { paths: [racesModules] }));
+const { DynamoDBDocumentClient, ScanCommand, BatchWriteCommand } = require(require.resolve('@aws-sdk/lib-dynamodb', { paths: [racesModules] }));
 
 const [,, sourceTable, destTable, region = 'us-east-1'] = process.argv;
 
