@@ -159,10 +159,13 @@ export class HoodToCoastStack extends cdk.Stack {
     }
 
     // GitHub Actions OIDC Provider & Deploy Role
-    const githubOidcProvider = new iam.OpenIdConnectProvider(this, 'GithubOidcProvider', {
-      url: 'https://token.actions.githubusercontent.com',
-      clientIds: ['sts.amazonaws.com'],
-    });
+    // The OIDC provider is account-global (only one per account), so we look it up
+    // rather than create it — avoids collision between dev and prod stacks.
+    const githubOidcProvider = iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(
+      this,
+      'GithubOidcProvider',
+      `arn:aws:iam::${this.account}:oidc-provider/token.actions.githubusercontent.com`,
+    );
 
     const githubDeployRole = new iam.Role(this, 'GithubActionsDeployRole', {
       roleName: `${props.environment}-github-actions-deploy`,
