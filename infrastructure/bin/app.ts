@@ -6,8 +6,8 @@ import { getEnvironmentConfig } from '../config/environments';
 
 const app = new cdk.App();
 
-// Get environment from command line argument or default to development
-const targetEnvironment = process.argv[2] || 'development';
+// Get environment from env var or command line argument, default to development
+const targetEnvironment = process.env.TARGET_ENVIRONMENT || process.argv[2] || 'development';
 const baseConfig = getEnvironmentConfig(targetEnvironment);
 
 // Get domain configuration from context parameters
@@ -22,7 +22,10 @@ if (useCustomDomain) {
   console.log(`Domain: ${subdomain}.${domainName}`);
 }
 
-new HoodToCoastStack(app, 'HoodToCoastStack', {
+// Use environment-specific stack name so dev and prod can coexist as separate stacks
+const stackName = `HoodToCoastStack-${targetEnvironment}`;
+
+new HoodToCoastStack(app, stackName, {
   env: { 
     account: process.env.CDK_DEFAULT_ACCOUNT, 
     region: baseConfig.region 

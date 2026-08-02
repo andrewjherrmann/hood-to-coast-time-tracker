@@ -200,7 +200,7 @@ export class HoodToCoastStack extends cdk.Stack {
         'cloudformation:DeleteChangeSet',
         'cloudformation:DescribeStackEvents',
       ],
-      resources: [`arn:aws:cloudformation:${props.region}:${this.account}:stack/HoodToCoastStack/*`],
+      resources: [`arn:aws:cloudformation:${props.region}:${this.account}:stack/HoodToCoastStack-${props.environment}/*`],
     }));
 
     // S3 permissions for frontend deployment

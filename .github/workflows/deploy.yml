@@ -101,7 +101,9 @@ jobs:
       - name: CDK Deploy
         working-directory: infrastructure
         run: |
-          npx cdk deploy --require-approval never \
+          TARGET_ENV="${{ steps.set-env.outputs.target_env }}"
+          STACK_NAME="HoodToCoastStack-${TARGET_ENV}"
+          npx cdk deploy "${STACK_NAME}" --require-approval never \
             --outputs-file cdk-outputs.json \
             -c domainName=${{ vars.DOMAIN_NAME || '' }} \
             -c subdomain=${{ vars.SUBDOMAIN || '' }}
@@ -112,9 +114,11 @@ jobs:
         id: cdk-outputs
         working-directory: infrastructure
         run: |
-          echo "api_url=$(jq -r '.HoodToCoastStack.ApiUrl // empty' cdk-outputs.json)" >> "$GITHUB_OUTPUT"
-          echo "bucket_name=$(jq -r '.HoodToCoastStack.WebsiteBucketName // empty' cdk-outputs.json)" >> "$GITHUB_OUTPUT"
-          echo "distribution_id=$(jq -r '.HoodToCoastStack.DistributionId // empty' cdk-outputs.json)" >> "$GITHUB_OUTPUT"
+          TARGET_ENV="${{ steps.set-env.outputs.target_env }}"
+          STACK_NAME="HoodToCoastStack-${TARGET_ENV}"
+          echo "api_url=$(jq -r --arg s "${STACK_NAME}" '.[$s].ApiUrl // empty' cdk-outputs.json)" >> "$GITHUB_OUTPUT"
+          echo "bucket_name=$(jq -r --arg s "${STACK_NAME}" '.[$s].WebsiteBucketName // empty' cdk-outputs.json)" >> "$GITHUB_OUTPUT"
+          echo "distribution_id=$(jq -r --arg s "${STACK_NAME}" '.[$s].DistributionId // empty' cdk-outputs.json)" >> "$GITHUB_OUTPUT"
 
   deploy-frontend:
     name: Deploy Frontend
