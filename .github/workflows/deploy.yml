@@ -98,6 +98,13 @@ jobs:
         working-directory: infrastructure
         run: yarn build
 
+      - name: CDK Deploy Shared Stack
+        working-directory: infrastructure
+        run: |
+          npx cdk deploy HoodToCoastStack-shared --require-approval never
+        env:
+          TARGET_ENVIRONMENT: ${{ steps.set-env.outputs.target_env }}
+
       - name: CDK Deploy
         working-directory: infrastructure
         run: |
