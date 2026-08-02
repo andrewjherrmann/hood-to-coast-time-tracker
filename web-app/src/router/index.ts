@@ -43,31 +43,36 @@ export default route(function (/* { store, ssrContext } */) {
 
   // Navigation guard to protect routes that require authentication
   Router.beforeEach((to, from, next) => {
-    // Check if the route requires authentication
     if (to.meta.requiresAuth) {
-      // Get authentication state from localStorage since store might not be available yet
+      // Check Cognito session first (stored by amazon-cognito-identity-js)
+      const cognitoKeys = Object.keys(localStorage).filter(k =>
+        k.startsWith('CognitoIdentityServiceProvider')
+      );
+      if (cognitoKeys.length > 0) {
+        next();
+        return;
+      }
+
+      // Fall back to mock auth session check
       const authSession = localStorage.getItem('htc-auth-session');
       if (authSession) {
         try {
           const session = JSON.parse(authSession);
-          const now = Date.now();
-          
-          // Check if session is still valid
-          if (now < session.expiresAt) {
-            next(); // Allow access
+          if (Date.now() < session.expiresAt) {
+            next();
             return;
           }
         } catch (error) {
           console.error('Error parsing auth session:', error);
         }
       }
-      
-      // No valid session, redirect to dashboard
+
+      // No valid session — redirect to dashboard
       next({ name: 'dashboard' });
       return;
     }
-    
-    next(); // Allow access to public routes
+
+    next();
   });
 
   return Router;

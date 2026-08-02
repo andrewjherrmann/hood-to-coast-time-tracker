@@ -84,6 +84,18 @@ Tracking planned improvements and features for the Hood to Coast Time Tracker.
 
 ---
 
+## 8. Migrate from Yarn to npm
+
+**Priority:** Low  
+**Status:** Not Started
+
+- Consolidate on npm as the package manager across all packages
+- Remove yarn.lock files, replace with package-lock.json
+- Update scripts and CI/CD workflows to use npm commands
+- Verify builds and installs work cleanly with npm
+
+---
+
 ## Notes
 
 - Items will be promoted to GitHub Issues once priorities and scope are solidified.

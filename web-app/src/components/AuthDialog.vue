@@ -6,9 +6,34 @@
       </q-card-section>
 
       <q-card-section class="q-pt-none">
+        <!-- Federated sign-in buttons (shown when Cognito is configured) -->
+        <div v-if="cognitoEnabled" class="q-gutter-md q-mb-lg">
+          <q-btn
+            class="full-width"
+            color="red-7"
+            icon="img:https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+            label="Sign in with Google"
+            @click="handleGoogleSignIn"
+            unelevated
+          />
+          <q-btn
+            class="full-width"
+            color="blue-9"
+            icon="mdi-microsoft"
+            label="Sign in with Microsoft"
+            @click="handleMicrosoftSignIn"
+            unelevated
+          />
+
+          <q-separator class="q-my-md" />
+          <div class="text-caption text-center text-grey-7">
+            Or sign in with test credentials (mock mode)
+          </div>
+        </div>
+
+        <!-- Mock credentials form (always available for development) -->
         <q-form @submit="handleSubmit" class="q-gutter-md">
-          <!-- Mock Credentials Hint -->
-          <div class="q-mb-md">
+          <div v-if="!cognitoEnabled" class="q-mb-md">
             <q-banner class="bg-info-1 text-info-9">
               <template v-slot:avatar>
                 <q-icon name="info" color="info" />
@@ -63,17 +88,6 @@
               :disable="!form.email || !form.password"
             />
           </div>
-          
-          <!-- Debug: Test button to bypass form validation -->
-          <div class="row justify-center q-mt-md">
-            <q-btn
-              flat
-              label="Test: Sign in as Admin"
-              color="secondary"
-              @click="testSignIn"
-              size="sm"
-            />
-          </div>
         </q-form>
       </q-card-section>
 
@@ -87,9 +101,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, ref } from 'vue';
+import { reactive, ref, computed } from 'vue';
 import { useQuasar } from 'quasar';
 import { useHoodToCoastStore } from '../stores/hood-to-coast-store';
+import { isCognitoConfigured, signInWithProvider } from '../services/auth';
 
 interface Props {
   modelValue: boolean;
@@ -105,7 +120,7 @@ const emit = defineEmits<Emits>();
 const $q = useQuasar();
 const store = useHoodToCoastStore();
 
-// Store is now properly accessible without debug logging
+const cognitoEnabled = computed(() => isCognitoConfigured);
 
 const show = computed({
   get: () => props.modelValue,
@@ -121,41 +136,32 @@ const isSubmitting = ref(false);
 
 function closeDialog() {
   show.value = false;
-  // Reset form
   form.email = '';
   form.password = '';
   isSubmitting.value = false;
 }
 
+function handleGoogleSignIn() {
+  signInWithProvider('Google');
+}
+
+function handleMicrosoftSignIn() {
+  signInWithProvider('Microsoft');
+}
+
 async function handleSubmit() {
-  console.log('=== AUTH DEBUG START ===');
-  console.log('Form submitted with:', { email: form.email, password: form.password });
-  console.log('Password length:', form.password.length);
-  console.log('Form validation should pass:', form.email && form.password && form.password.length >= 8);
-  
   isSubmitting.value = true;
-  
+
   try {
-    console.log('Calling store.signIn...');
     const success = await store.signIn(form.email, form.password);
-    console.log('Sign in result:', success);
-    console.log('Store auth state:', store.isAuthenticated);
-    console.log('Store current user:', store.currentUser);
-    
+
     if (success) {
-      console.log('✅ Successfully signed in!');
       $q.notify({
         type: 'positive',
         message: 'Successfully signed in!'
       });
       closeDialog();
     } else {
-      console.log('❌ Invalid email or password');
-      console.log('Available mock users:', [
-        { email: 'admin@example.com', password: 'password' },
-        { email: 'john@example.com', password: 'password' },
-        { email: 'jane@example.com', password: 'password' }
-      ]);
       $q.notify({
         type: 'negative',
         message: 'Invalid email or password. Please try again.'
@@ -169,21 +175,6 @@ async function handleSubmit() {
     });
   } finally {
     isSubmitting.value = false;
-    console.log('=== AUTH DEBUG END ===');
   }
-}
-
-async function testSignIn() {
-  console.log('=== TEST SIGN IN START ===');
-  console.log('Attempting to sign in as admin@example.com / password');
-  const success = await store.signIn('admin@example.com', 'password');
-  console.log('Test sign in result:', success);
-  console.log('Store auth state after test:', store.isAuthenticated);
-  console.log('Store current user after test:', store.currentUser);
-  $q.notify({
-    type: success ? 'positive' : 'negative',
-    message: success ? 'Successfully signed in as admin!' : 'Failed to sign in as admin.'
-  });
-  console.log('=== TEST SIGN IN END ===');
 }
 </script>

@@ -1,9 +1,19 @@
+export interface AuthConfig {
+  googleClientId?: string;
+  googleClientSecret?: string;
+  microsoftClientId?: string;
+  microsoftClientSecret?: string;
+  callbackUrls: string[];
+  logoutUrls: string[];
+}
+
 export interface EnvironmentConfig {
   region: string;
   environment: string;
   description: string;
   mockMode: boolean;
   generateEnvFile: boolean;
+  auth?: AuthConfig;
 }
 
 export const environments: Record<string, EnvironmentConfig> = {

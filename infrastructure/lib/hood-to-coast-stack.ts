@@ -12,7 +12,9 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
+import * as cognito from 'aws-cdk-lib/aws-cognito';
 import { RemovalPolicy } from 'aws-cdk-lib';
+import { AuthConfig } from '../config/environments';
 
 export interface HoodToCoastStackProps extends cdk.StackProps {
   domainName?: string;
@@ -22,6 +24,7 @@ export interface HoodToCoastStackProps extends cdk.StackProps {
   useCustomDomain: boolean;
   mockMode: boolean;
   generateEnvFile: boolean;
+  auth?: AuthConfig;
 }
 
 // Helper function to get context values with defaults
@@ -120,10 +123,16 @@ export class HoodToCoastStack extends cdk.Stack {
       if (hostedZone) {
         this.createBackendInfrastructure(props, hostedZone);
       }
+
+      // Create authentication infrastructure
+      this.createAuthInfrastructure(props, fullDomainName);
     } else {
       // Create backend infrastructure even without custom domain
       // We need this for the API to work
       this.createBackendInfrastructure(props, undefined);
+
+      // Create authentication infrastructure
+      this.createAuthInfrastructure(props, undefined);
       
       // Simple CloudFront setup without custom domain
       distribution = new cloudfront.Distribution(this, 'Distribution', {
@@ -477,6 +486,154 @@ ${!props.mockMode ? 'VITE_API_KEY_REQUIRED=true' : ''}
     new cdk.CfnOutput(this, 'EnvironmentFileContent', {
       value: envContent,
       description: 'Environment file content to copy to web-app/.env.production',
+    });
+  }
+
+  private createAuthInfrastructure(props: HoodToCoastStackProps, appDomain?: string) {
+    // Cognito User Pool
+    const userPool = new cognito.UserPool(this, 'UserPool', {
+      userPoolName: `${props.environment}-htc-user-pool`,
+      selfSignUpEnabled: false, // Admin-only invites
+      signInAliases: { email: true },
+      autoVerify: { email: true },
+      standardAttributes: {
+        email: { required: true, mutable: true },
+        givenName: { required: true, mutable: true },
+        familyName: { required: true, mutable: true },
+      },
+      customAttributes: {
+        isAdmin: new cognito.BooleanAttribute({ mutable: true }),
+      },
+      passwordPolicy: {
+        minLength: 8,
+        requireLowercase: true,
+        requireUppercase: true,
+        requireDigits: true,
+        requireSymbols: false,
+      },
+      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
+      removalPolicy: props.environment === 'production'
+        ? RemovalPolicy.RETAIN
+        : RemovalPolicy.DESTROY,
+    });
+
+    // Callback and logout URLs
+    const callbackUrls = [
+      'http://localhost:9000/auth/callback',
+      ...(appDomain ? [`https://${appDomain}/auth/callback`] : []),
+      ...(props.auth?.callbackUrls || []),
+    ];
+
+    const logoutUrls = [
+      'http://localhost:9000/',
+      ...(appDomain ? [`https://${appDomain}/`] : []),
+      ...(props.auth?.logoutUrls || []),
+    ];
+
+    // Google Identity Provider (configured when credentials are provided)
+    if (props.auth?.googleClientId && props.auth?.googleClientSecret) {
+      const googleIdp = new cognito.UserPoolIdentityProviderGoogle(this, 'GoogleIdp', {
+        userPool,
+        clientId: props.auth.googleClientId,
+        clientSecretValue: cdk.SecretValue.unsafePlainText(props.auth.googleClientSecret),
+        scopes: ['openid', 'email', 'profile'],
+        attributeMapping: {
+          email: cognito.ProviderAttribute.GOOGLE_EMAIL,
+          givenName: cognito.ProviderAttribute.GOOGLE_GIVEN_NAME,
+          familyName: cognito.ProviderAttribute.GOOGLE_FAMILY_NAME,
+        },
+      });
+
+      userPool.registerIdentityProvider(googleIdp);
+    }
+
+    // Microsoft Identity Provider (configured when credentials are provided)
+    if (props.auth?.microsoftClientId && props.auth?.microsoftClientSecret) {
+      const microsoftIdp = new cognito.UserPoolIdentityProviderOidc(this, 'MicrosoftIdp', {
+        userPool,
+        name: 'Microsoft',
+        clientId: props.auth.microsoftClientId,
+        clientSecret: props.auth.microsoftClientSecret,
+        issuerUrl: 'https://login.microsoftonline.com/common/v2.0',
+        scopes: ['openid', 'email', 'profile'],
+        attributeMapping: {
+          email: cognito.ProviderAttribute.other('email'),
+          givenName: cognito.ProviderAttribute.other('given_name'),
+          familyName: cognito.ProviderAttribute.other('family_name'),
+        },
+      });
+
+      userPool.registerIdentityProvider(microsoftIdp);
+    }
+
+    // Determine supported identity providers
+    const supportedProviders: cognito.UserPoolClientIdentityProvider[] = [
+      cognito.UserPoolClientIdentityProvider.COGNITO,
+    ];
+    if (props.auth?.googleClientId) {
+      supportedProviders.push(cognito.UserPoolClientIdentityProvider.GOOGLE);
+    }
+    if (props.auth?.microsoftClientId) {
+      supportedProviders.push(cognito.UserPoolClientIdentityProvider.custom('Microsoft'));
+    }
+
+    // User Pool Client (for the frontend app)
+    const userPoolClient = new cognito.UserPoolClient(this, 'UserPoolClient', {
+      userPool,
+      userPoolClientName: `${props.environment}-htc-web-client`,
+      generateSecret: false, // SPA clients don't use secrets
+      authFlows: {
+        userSrp: true,
+        custom: true,
+      },
+      oAuth: {
+        flows: { authorizationCodeGrant: true },
+        scopes: [
+          cognito.OAuthScope.OPENID,
+          cognito.OAuthScope.EMAIL,
+          cognito.OAuthScope.PROFILE,
+        ],
+        callbackUrls,
+        logoutUrls,
+      },
+      supportedIdentityProviders: supportedProviders,
+      preventUserExistenceErrors: true,
+    });
+
+    // Cognito Domain (hosted UI)
+    const cognitoDomain = userPool.addDomain('CognitoDomain', {
+      cognitoDomain: {
+        domainPrefix: `${props.environment}-htc-auth`,
+      },
+    });
+
+    // Store User Pool ID and Client ID in SSM for other services to reference
+    new ssm.StringParameter(this, 'UserPoolIdParameter', {
+      parameterName: `/${props.environment}/htc/cognito-user-pool-id`,
+      stringValue: userPool.userPoolId,
+      description: 'Cognito User Pool ID for Hood to Coast Time Tracker',
+    });
+
+    new ssm.StringParameter(this, 'UserPoolClientIdParameter', {
+      parameterName: `/${props.environment}/htc/cognito-client-id`,
+      stringValue: userPoolClient.userPoolClientId,
+      description: 'Cognito User Pool Client ID for Hood to Coast Time Tracker',
+    });
+
+    // Outputs
+    new cdk.CfnOutput(this, 'UserPoolId', {
+      value: userPool.userPoolId,
+      description: 'Cognito User Pool ID',
+    });
+
+    new cdk.CfnOutput(this, 'UserPoolClientId', {
+      value: userPoolClient.userPoolClientId,
+      description: 'Cognito User Pool Client ID',
+    });
+
+    new cdk.CfnOutput(this, 'CognitoDomainUrl', {
+      value: cognitoDomain.baseUrl(),
+      description: 'Cognito Hosted UI Domain URL',
     });
   }
 }

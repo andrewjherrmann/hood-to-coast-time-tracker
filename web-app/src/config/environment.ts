@@ -71,3 +71,10 @@ export const cdkConfig = {
   subdomain: process.env.VITE_SUBDOMAIN,
 };
 
+// Cognito configuration
+export const cognitoConfig = {
+  userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID || '',
+  clientId: import.meta.env.VITE_COGNITO_CLIENT_ID || '',
+  domain: import.meta.env.VITE_COGNITO_DOMAIN || '',
+};
+

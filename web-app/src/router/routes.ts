@@ -24,6 +24,13 @@ const routes: RouteRecordRaw[] = [
     ]
   },
 
+  // Auth callback route (outside main layout)
+  {
+    path: '/auth/callback',
+    name: 'auth-callback',
+    component: () => import('pages/AuthCallbackPage.vue'),
+  },
+
   // Always leave this as last one,
   // but you can also remove it
   {

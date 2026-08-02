@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { mockRaces } from './mock-data';
 import { useMockData, getMockModeStatus, environment } from '../config/environment';
 import { racesApi, isApiAvailable } from '../services/api';
+import { signOut as cognitoSignOut, isCognitoConfigured } from '../services/auth';
 import type { 
   Runner, 
   Leg, 
@@ -920,6 +921,23 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     currentUser.value = null;
     hasFullDataAccess.value = false;
     clearAuthSession();
+
+    // If Cognito is configured, also clear Cognito session
+    if (isCognitoConfigured) {
+      cognitoSignOut(true);
+    }
+  }
+
+  /**
+   * Set authenticated user from Cognito federated sign-in.
+   * Called after OAuth callback completes successfully.
+   */
+  function setAuthenticatedUser(user: { id: string; email: string; name: string; isAdmin?: boolean }) {
+    isAuthenticated.value = true;
+    currentUser.value = { id: user.id, email: user.email, name: user.name };
+    hasFullDataAccess.value = true;
+    // Save to localStorage for route guard checks
+    saveAuthSession(currentUser.value);
   }
 
   // Race management functions
@@ -1384,6 +1402,7 @@ export const useHoodToCoastStore = defineStore('hood-to-coast', () => {
     toggleMockMode,
     signIn,
     signOut,
+    setAuthenticatedUser,
     refreshAuthSession,
     checkSessionValidity,
     getSessionInfo,
