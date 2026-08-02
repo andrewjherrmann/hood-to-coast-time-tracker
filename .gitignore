@@ -98,6 +98,9 @@ lambda-test.json
 simple-test.json
 *.test.json
 
+# DynamoDB backup files
+*-backup.json
+
 # Log files and directories containing sensitive data
 log_files/
 *.csv
