@@ -88,3 +88,17 @@ Tracking planned improvements and features for the Hood to Coast Time Tracker.
 
 - Items will be promoted to GitHub Issues once priorities and scope are solidified.
 - This file is for early brainstorming and tracking.
+
+---
+
+## 8. Dedicated AWS Account Bootstrap Repo
+
+**Priority:** Medium  
+**Status:** Not Started
+
+- Create a separate repo (e.g. `aws-account-bootstrap`) to own account-global AWS resources
+- Move the GitHub Actions OIDC provider (`token.actions.githubusercontent.com`) out of this project's CDK stack and into the bootstrap repo
+- Any future project in the same AWS account can reference the shared OIDC provider ARN rather than managing it themselves
+- Also a good home for: shared IAM policies, budget alerts, account-wide SCPs, Cost Explorer tags
+- Currently using a `HoodToCoastSharedStack` in this repo as a stopgap — migrate once bootstrap repo exists
+
